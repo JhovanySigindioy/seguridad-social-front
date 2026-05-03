@@ -1,5 +1,3 @@
-import React from 'react';
-
 type Status = 'Pendiente' | 'En Proceso' | 'Pagado';
 
 const config: Record<Status, { label: string; className: string }> = {

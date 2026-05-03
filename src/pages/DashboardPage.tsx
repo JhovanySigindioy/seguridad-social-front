@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, FileText, Settings, LogOut,
   Building2, Menu, X, Sun, Moon, Bell,
-  TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight
+  TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
@@ -11,11 +11,13 @@ import { OfficeSelectorModal } from '../features/offices/components/OfficeSelect
 import { AffiliationsTable } from '../features/affiliations/components/AffiliationsTable';
 import { CreateAffiliationModal } from '../features/affiliations/components/CreateAffiliationModal';
 import { useAffiliations } from '../features/affiliations/hooks/useAffiliations';
+import { ClientsTable } from '../features/clients/components/ClientsTable';
 
 // ─── Nav Items ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
   { id: 'dashboard',    label: 'Dashboard',     icon: LayoutDashboard },
   { id: 'affiliations', label: 'Afiliaciones',  icon: Users },
+  { id: 'clients',      label: 'Clientes',      icon: UserPlus },
   { id: 'companies',    label: 'Empresas',      icon: Building2 },
   { id: 'billing',      label: 'Facturación',   icon: FileText },
   { id: 'settings',     label: 'Configuración', icon: Settings },
@@ -218,7 +220,7 @@ export const DashboardPage = () => {
   const { theme, toggleTheme } = useThemeStore();
   const [activeTab, setActiveTab]     = useState('dashboard');
   const [mobileOpen, setMobileOpen]   = useState(false);
-  const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const [isCreateAffiliationModalOpen, setCreateAffiliationModalOpen] = useState(false);
 
   const isAdmin   = user?.role === 'admin';
   const isBlocked = !isAdmin && !activeOfficeId;
@@ -234,13 +236,22 @@ export const DashboardPage = () => {
               <p className="text-slate-500 dark:text-zinc-400 text-sm mt-1">Gestión mensual de pagos de seguridad social</p>
             </div>
             <button
-              onClick={() => setCreateModalOpen(true)}
+              onClick={() => setCreateAffiliationModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all shadow-md shadow-indigo-500/20 active:scale-95"
             >
               <Users size={18} /> Nueva Afiliación
             </button>
           </div>
           <AffiliationsTable />
+        </div>
+      );
+      case 'clients': return (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">Clientes</h1>
+            <p className="text-slate-500 dark:text-zinc-400 text-sm mt-1">Gestión de clientes de la oficina</p>
+          </div>
+          <ClientsTable />
         </div>
       );
       case 'companies': return <ComingSoon label="Módulo de Empresas" />;
@@ -251,10 +262,9 @@ export const DashboardPage = () => {
   };
 
   return (
-    // NO añadir clase 'dark' aquí — la gestiona useThemeStore en document.documentElement
     <div className="h-screen overflow-hidden flex bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-white">
       <OfficeSelectorModal />
-      <CreateAffiliationModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} />
+      <CreateAffiliationModal isOpen={isCreateAffiliationModalOpen} onClose={() => setCreateAffiliationModalOpen(false)} />
 
       {/* ── Desktop Sidebar (siempre visible) ─────────────────── */}
       <div className="hidden lg:flex flex-shrink-0">

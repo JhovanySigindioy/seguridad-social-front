@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, AlertCircle, Building, Heart, Shield, Landmark, CheckCircle2 } from 'lucide-react';
-import { useAffiliationFormData, useCreateAffiliation } from '../hooks/useAffiliations';
+import { useAffiliationFormData, useUpdateAffiliation } from '../hooks/useAffiliations';
+import type { AffiliationItem } from '../types/affiliation.types';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  affiliation: AffiliationItem | null;
 }
 
-export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
+export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) => {
   const { data: cat, isLoading } = useAffiliationFormData();
-  const { mutateAsync: create, isPending } = useCreateAffiliation();
+  const { mutateAsync: update, isPending } = useUpdateAffiliation();
 
   const [error, setError] = useState('');
 
@@ -29,25 +31,46 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
 
   const [value, setValue] = useState('');
   const [method, setMethod] = useState('');
+  const [isAutoRenewed, setIsAutoRenewed] = useState(true);
 
   useEffect(() => {
-    if (isOpen) {
-      setClientId('');
-      setCompanyId('');
-      setValue('');
-      setHasEps(false);
-      setHasArl(false);
-      setHasCcf(false);
-      setHasPension(false);
-      setEpsId('');
-      setArlId('');
-      setCcfId('');
-      setPensionId('');
-      setRiskLevel('1');
-      setMethod('');
-      setError('');
+    if (affiliation && isOpen) {
+      setClientId(String((affiliation as any).client_id || ''));
+      setCompanyId(String((affiliation as any).company_id || ''));
+      setValue(String(affiliation.value));
+      setMethod((affiliation as any).payment_method || '');
+      setIsAutoRenewed(Boolean(affiliation.is_auto_renewed));
+
+      const hasEpsVal = affiliation.eps_name && affiliation.eps_name !== '—';
+      const hasArlVal = affiliation.arl_name && affiliation.arl_name !== '—';
+      const hasCcfVal = affiliation.ccf_name && affiliation.ccf_name !== '—';
+      const hasPensionVal = affiliation.pension_name && affiliation.pension_name !== '—';
+
+      setHasEps(Boolean(hasEpsVal));
+      setHasArl(Boolean(hasArlVal));
+      setHasCcf(Boolean(hasCcfVal));
+      setHasPension(Boolean(hasPensionVal));
+
+      setRiskLevel(affiliation.risk_level || '1');
+
+      if (cat?.eps && hasEpsVal) {
+        const eps = cat.eps.find((e: any) => e.name === affiliation.eps_name);
+        if (eps) setEpsId(String(eps.id));
+      }
+      if (cat?.arl && hasArlVal) {
+        const arl = cat.arl.find((a: any) => a.name === affiliation.arl_name);
+        if (arl) setArlId(String(arl.id));
+      }
+      if (cat?.ccf && hasCcfVal) {
+        const ccf = cat.ccf.find((c: any) => c.name === affiliation.ccf_name);
+        if (ccf) setCcfId(String(ccf.id));
+      }
+      if (cat?.pensions && hasPensionVal) {
+        const pen = cat.pensions.find((p: any) => p.name === affiliation.pension_name);
+        if (pen) setPensionId(String(pen.id));
+      }
     }
-  }, [isOpen]);
+  }, [affiliation, isOpen, cat]);
 
   const handleSubmit = async () => {
     setError('');
@@ -61,22 +84,23 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
     if (!value || isNaN(Number(value))) return setError('Ingresa un valor de cobro válido.');
 
     try {
-      await create({
+      await update({
+        id: affiliation!.id,
         client_id: Number(clientId),
         company_id: Number(companyId),
         value: Number(value),
-        payment_method: method || undefined,
+        payment_method: method || null,
         eps_id: hasEps ? Number(epsId) : null,
         arl_id: hasArl ? Number(arlId) : null,
         ccf_id: hasCcf ? Number(ccfId) : null,
         pension_id: hasPension ? Number(pensionId) : null,
         risk_level: hasArl ? riskLevel : null,
-        is_auto_renewed: true,
+        is_auto_renewed: isAutoRenewed,
       });
 
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al crear la afiliación');
+      setError(err.response?.data?.error || 'Error al actualizar la afiliación');
     }
   };
 
@@ -115,8 +139,8 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
           >
             <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0">
               <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Nueva Afiliación</h2>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Configura el perfil del afiliado</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Editar Afiliación</h2>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">Modifica los datos del afiliado</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800">
                 <X size={18} />
@@ -183,7 +207,7 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
                   <>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-2">Detalles de Entidades</label>
-                      
+
                       {!hasEps && !hasPension && !hasArl && !hasCcf && (
                         <div className="p-6 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-xl text-center text-slate-400 text-sm">
                           Activa un módulo a la izquierda

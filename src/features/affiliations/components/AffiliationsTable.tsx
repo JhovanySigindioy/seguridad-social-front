@@ -1,21 +1,76 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText } from 'lucide-react';
-import { useAffiliations } from '../hooks/useAffiliations';
+import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil } from 'lucide-react';
+import { useAffiliations, useUpdateAffiliationStatus } from '../hooks/useAffiliations';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { PAYMENT_STATUSES, type AffiliationItem, type PaymentStatus } from '../types/affiliation.types';
 import { StatusBadge } from './StatusBadge';
 import { AffiliationDetailsModal } from './AffiliationDetailsModal';
+import { EditAffiliationModal } from './EditAffiliationModal';
 
-const MONTHS = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const OFFICE_MANAGER_PAYMENT_STATUSES: PaymentStatus[] = ['Pendiente', 'En Proceso'];
+const STATUS_STYLES: Record<PaymentStatus, {
+  dot: string;
+  select: string;
+  filterActive: string;
+  filterIdle: string;
+}> = {
+  Pendiente: {
+    dot: 'bg-amber-500',
+    select: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300',
+    filterActive: 'border-amber-500 bg-amber-500 text-white shadow-sm shadow-amber-500/20',
+    filterIdle: 'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300',
+  },
+  'En Proceso': {
+    dot: 'bg-blue-500',
+    select: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300',
+    filterActive: 'border-blue-500 bg-blue-500 text-white shadow-sm shadow-blue-500/20',
+    filterIdle: 'border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300',
+  },
+  Pagado: {
+    dot: 'bg-emerald-500',
+    select: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300',
+    filterActive: 'border-emerald-500 bg-emerald-500 text-white shadow-sm shadow-emerald-500/20',
+    filterIdle: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300',
+  },
+};
+
+const getAllowedStatuses = (role?: string): PaymentStatus[] => {
+  if (role === 'admin') return [...PAYMENT_STATUSES];
+  if (role === 'office_manager') return OFFICE_MANAGER_PAYMENT_STATUSES;
+  return [];
+};
+
+const formatDate = (value?: string | null) => {
+  if (!value) return 'Sin registrar';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Sin registrar';
+
+  return new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+};
 
 export const AffiliationsTable = () => {
   const { data: affiliations, isLoading, isError, refetch, isFetching } = useAffiliations();
+  const { user } = useAuthStore();
+  const updateStatus = useUpdateAffiliationStatus();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<string>('id');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const itemsPerPage = 8;
+  const allowedStatusOptions = useMemo(() => getAllowedStatuses(user?.role), [user?.role]);
+  const canChangeStatus = allowedStatusOptions.length > 0;
+  const isOfficeManager = user?.role === 'office_manager';
 
   const filtered = useMemo(() => {
     if (!affiliations) return [];
@@ -40,6 +95,51 @@ export const AffiliationsTable = () => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortDir('desc'); }
     setCurrentPage(1);
+  };
+
+  const getStatusOptions = (currentStatus: PaymentStatus) => {
+    return allowedStatusOptions.includes(currentStatus)
+      ? allowedStatusOptions
+      : [currentStatus, ...allowedStatusOptions];
+  };
+
+  const isStatusLocked = (item: AffiliationItem) => {
+    return isOfficeManager && item.payment_status === 'Pagado';
+  };
+
+  const handleStatusChange = (item: AffiliationItem, paymentStatus: PaymentStatus) => {
+    if (item.payment_status === paymentStatus) return;
+    if (isOfficeManager && item.payment_status === 'Pagado') return;
+
+    setStatusError(null);
+    setUpdatingStatusId(item.id);
+
+    updateStatus.mutate(
+      { id: item.id, payment_status: paymentStatus },
+      {
+        onError: (error: any) => {
+          setStatusError(error.response?.data?.error || 'No se pudo actualizar el estado');
+        },
+        onSettled: () => {
+          setUpdatingStatusId(null);
+        },
+      }
+    );
+  };
+
+  const getFilterClassName = (status: 'all' | PaymentStatus) => {
+    const base = 'px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all';
+    const isActive = statusFilter === status;
+
+    if (status === 'all') {
+      return `${base} ${
+        isActive
+          ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+          : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400'
+      }`;
+    }
+
+    return `${base} ${isActive ? STATUS_STYLES[status].filterActive : STATUS_STYLES[status].filterIdle}`;
   };
 
   const paginated = useMemo(() => {
@@ -82,11 +182,7 @@ export const AffiliationsTable = () => {
             <button
               key={s}
               onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                statusFilter === s
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700 hover:border-indigo-300'
-              }`}
+              className={getFilterClassName(s)}
             >
               {s === 'all' ? 'Todos' : s}
             </button>
@@ -106,6 +202,11 @@ export const AffiliationsTable = () => {
       <p className="text-xs text-slate-400 dark:text-zinc-500">
         {isLoading ? 'Cargando...' : `${filtered.length} registro${filtered.length !== 1 ? 's' : ''} encontrado${filtered.length !== 1 ? 's' : ''}`}
       </p>
+      {statusError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-600 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-400">
+          {statusError}
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
@@ -115,8 +216,8 @@ export const AffiliationsTable = () => {
               {[
                 { label: 'Cliente', field: 'client_name' },
                 { label: 'Empresa', field: 'company_name' },
-                { label: 'Período', field: 'year' },
-                { label: 'Módulos', field: 'eps_name' },
+                { label: 'Fechas', field: 'gov_record_at' },
+                { label: 'Servicios', field: 'eps_name' },
                 { label: 'Valor', field: 'value' },
                 { label: 'Estado', field: 'payment_status' },
               ].map(col => (
@@ -167,9 +268,10 @@ export const AffiliationsTable = () => {
                     </td>
                     <td className="px-4 py-3.5 text-slate-600 dark:text-zinc-400 max-w-[180px] truncate">{item.company_name}</td>
                     <td className="px-4 py-3.5">
-                      <span className="font-mono text-xs bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 px-2 py-1 rounded">
-                        {MONTHS[item.month]} {item.year}
-                      </span>
+                      <div className="text-[11px] leading-tight text-slate-500 dark:text-zinc-400">
+                        <p><span className="font-bold text-slate-600 dark:text-zinc-300">Recibido:</span> {formatDate(item.created_at)}</p>
+                        <p><span className="font-bold text-emerald-600 dark:text-emerald-400">Pagado:</span> {formatDate(item.gov_record_at)}</p>
+                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex flex-wrap gap-1 max-w-[150px]">
@@ -187,8 +289,43 @@ export const AffiliationsTable = () => {
                         ${Number(item.value).toLocaleString('es-CO')}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5">
-                      <StatusBadge status={item.payment_status} />
+                    <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setEditingItem(item)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                          title="Editar afiliación"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        {canChangeStatus ? (
+                          <div
+                            title={isStatusLocked(item) ? 'Estado pagado bloqueado para office_manager' : 'Cambiar estado'}
+                            className={`inline-flex min-w-[138px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${STATUS_STYLES[item.payment_status].select} ${isStatusLocked(item) ? 'cursor-not-allowed opacity-80' : ''}`}
+                          >
+                            <span className={`h-2 w-2 rounded-full ${STATUS_STYLES[item.payment_status].dot}`} />
+                            {isStatusLocked(item) ? (
+                              <span className="min-w-[94px]">{item.payment_status}</span>
+                            ) : (
+                              <select
+                                aria-label="Cambiar estado"
+                                value={item.payment_status}
+                                disabled={updatingStatusId === item.id}
+                                onChange={event => handleStatusChange(item, event.target.value as PaymentStatus)}
+                                className="min-w-[104px] cursor-pointer bg-transparent text-xs font-semibold outline-none disabled:cursor-wait disabled:opacity-60"
+                              >
+                                {getStatusOptions(item.payment_status).map(status => (
+                                  <option key={status} value={status}>
+                                    {status}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        ) : (
+                          <StatusBadge status={item.payment_status} />
+                        )}
+                      </div>
                     </td>
                   </motion.tr>
                 ))}
@@ -230,6 +367,12 @@ export const AffiliationsTable = () => {
         isOpen={!!selectedItem} 
         data={selectedItem} 
         onClose={() => setSelectedItem(null)} 
+      />
+
+      <EditAffiliationModal
+        isOpen={!!editingItem}
+        affiliation={editingItem}
+        onClose={() => setEditingItem(null)}
       />
     </div>
   );

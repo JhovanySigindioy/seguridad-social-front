@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Building2, MapPin, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';

@@ -1,9 +1,23 @@
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Building2, UserCircle, Briefcase, FileText, CheckCircle2, DollarSign } from 'lucide-react';
+import { X, Building2, UserCircle, Briefcase, FileText, DollarSign } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
 
 const MONTHS = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+const formatDate = (value?: string | null) => {
+  if (!value) return 'Sin registrar';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Sin registrar';
+
+  return new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+};
 
 interface Props {
   isOpen: boolean;
@@ -142,9 +156,14 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
                       <span className="text-sm font-medium text-slate-500 dark:text-zinc-400">Trámite (Gobierno)</span>
                       <StatusBadge status={data.payment_status} />
                     </div>
+                    
+<div className="flex justify-between items-center gap-4">
+                      <span className="text-sm font-medium text-slate-500 dark:text-zinc-400">Pago ante gobierno</span>
+                      <span className="text-right text-sm font-bold text-emerald-700 dark:text-emerald-300">{formatDate(data.gov_record_at)}</span>
+                    </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-slate-500 dark:text-zinc-400">Medio Pago (Cliente)</span>
-                      <span className="text-sm font-bold text-slate-800 dark:text-zinc-200">{data.payment_method || 'No definido'}</span>
+                      <span className="text-sm font-medium text-slate-500 dark:text-zinc-400">Recibido en plataforma</span>
+                      <span className="text-right text-sm font-bold text-slate-700 dark:text-zinc-200">{formatDate(data.created_at)}</span>
                     </div>
                   </div>
                 </div>
