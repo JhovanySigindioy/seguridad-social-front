@@ -1,0 +1,42 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+/* ─────────────────────────────────────────────────────────────────
+   CRÍTICO: Le dice a Tailwind v4 que el dark mode se activa
+   con la clase `.dark` en el <html>, NO con prefers-color-scheme
+──────────────────────────────────────────────────────────────────── */
+@variant dark (&:where(.dark, .dark *));
+
+/* ─── Tipografía ──────────────────────────────────────────────── */
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Reset Full Screen ───────────────────────────────────────── */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Colores base según tema ─────────────────────────────────── */
+body {
+  background-color: #f8fafc; /* slate-50 */
+  color: #0f172a;            /* slate-900 */
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.dark body {
+  background-color: #09090b; /* zinc-950 */
+  color: #fafafa;            /* zinc-50 */
+}
+
+/* ─── Scrollbar personalizado ─────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+html.dark ::-webkit-scrollbar-thumb { background: #3f3f46; }
