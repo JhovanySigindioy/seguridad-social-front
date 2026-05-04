@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, AlertCircle, Building, Heart, Shield, Landmark, CheckCircle2 } from 'lucide-react';
+import { X, Save, Building, Heart, Shield, Landmark, CheckCircle2 } from 'lucide-react';
 import { useAffiliationFormData, useUpdateAffiliation } from '../hooks/useAffiliations';
+import { useToast } from '../../../components/Toast';
 import type { AffiliationItem } from '../types/affiliation.types';
 
 interface Props {
@@ -13,11 +14,13 @@ interface Props {
 export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) => {
   const { data: cat, isLoading } = useAffiliationFormData();
   const { mutateAsync: update, isPending } = useUpdateAffiliation();
-
-  const [error, setError] = useState('');
+  const { showToast } = useToast();
 
   const [clientId, setClientId] = useState('');
   const [companyId, setCompanyId] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const today = new Date().toISOString().split('T')[0];
   const [hasEps, setHasEps] = useState(false);
   const [hasArl, setHasArl] = useState(false);
   const [hasCcf, setHasCcf] = useState(false);
@@ -40,6 +43,8 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
       setValue(String(affiliation.value));
       setMethod((affiliation as any).payment_method || '');
       setIsAutoRenewed(Boolean(affiliation.is_auto_renewed));
+      setStartDate(affiliation.start_date || '');
+      setEndDate(affiliation.end_date || '');
 
       const hasEpsVal = affiliation.eps_name && affiliation.eps_name !== '—';
       const hasArlVal = affiliation.arl_name && affiliation.arl_name !== '—';
@@ -73,15 +78,13 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
   }, [affiliation, isOpen, cat]);
 
   const handleSubmit = async () => {
-    setError('');
-
-    if (!clientId) return setError('Selecciona un cliente.');
-    if (!companyId) return setError('Selecciona la empresa.');
-    if (hasEps && !epsId) return setError('Selecciona la Entidad EPS.');
-    if (hasArl && !arlId) return setError('Selecciona la Aseguradora ARL.');
-    if (hasCcf && !ccfId) return setError('Selecciona la Caja de Compensación.');
-    if (hasPension && !pensionId) return setError('Selecciona el Fondo de Pensión.');
-    if (!value || isNaN(Number(value))) return setError('Ingresa un valor de cobro válido.');
+    if (!clientId) return showToast('Selecciona un cliente.');
+    if (!companyId) return showToast('Selecciona la empresa.');
+    if (hasEps && !epsId) return showToast('Selecciona la Entidad EPS.');
+    if (hasArl && !arlId) return showToast('Selecciona la Aseguradora ARL.');
+    if (hasCcf && !ccfId) return showToast('Selecciona la Caja de Compensación.');
+    if (hasPension && !pensionId) return showToast('Selecciona el Fondo de Pensión.');
+    if (!value || isNaN(Number(value))) return showToast('Ingresa un valor de cobro válido.');
 
     try {
       await update({
@@ -90,6 +93,8 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
         company_id: Number(companyId),
         value: Number(value),
         payment_method: method || null,
+        start_date: startDate || null,
+        end_date: endDate || null,
         eps_id: hasEps ? Number(epsId) : null,
         arl_id: hasArl ? Number(arlId) : null,
         ccf_id: hasCcf ? Number(ccfId) : null,
@@ -98,9 +103,10 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
         is_auto_renewed: isAutoRenewed,
       });
 
+      showToast('Afiliación actualizada exitosamente', 'success');
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al actualizar la afiliación');
+      showToast(err.response?.data?.error || 'Error al actualizar la afiliación');
     }
   };
 
@@ -135,7 +141,7 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-5xl max-h-[90vh] bg-slate-50 dark:bg-zinc-950 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 flex flex-col overflow-hidden"
+            className="relative w-full max-w-6xl max-h-[90vh] bg-slate-50 dark:bg-zinc-950 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 flex flex-col overflow-hidden"
           >
             <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0">
               <div>
@@ -154,7 +160,7 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
                   <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Cliente</label>
                   <select
                     value={clientId}
-                    onChange={e => { setClientId(e.target.value); setError(''); }}
+                    onChange={e => setClientId(e.target.value)}
                     className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
                   >
                     <option value="">Seleccionar...</option>
@@ -170,7 +176,7 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
                   <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Empresa</label>
                   <select
                     value={companyId}
-                    onChange={e => { setCompanyId(e.target.value); setError(''); }}
+                    onChange={e => setCompanyId(e.target.value)}
                     className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
                   >
                     <option value="">Seleccionar...</option>
@@ -193,18 +199,43 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
 
               {/* RIGHT COLUMN */}
               <div className="flex-1 p-5 overflow-y-auto space-y-4">
-                {error && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/30 rounded-xl text-sm">
-                    <AlertCircle size={16} /> {error}
-                  </div>
-                )}
-
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                   </div>
                 ) : (
                   <>
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600 dark:text-indigo-400"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                        </div>
+                        <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">Fechas</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Inicio Afiliación</label>
+                          <input
+                            type="date"
+                            value={startDate}
+                            max={today}
+                            onChange={e => setStartDate(e.target.value)}
+                            className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Fin Afiliación <span className="text-slate-400">(opcional)</span></label>
+                          <input
+                            type="date"
+                            value={endDate}
+                            min={startDate}
+                            onChange={e => setEndDate(e.target.value)}
+                            className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-2">Detalles de Entidades</label>
 
@@ -276,13 +307,19 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
                       <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 space-y-3">
                         <div>
                           <label className="block text-xs text-slate-500 dark:text-zinc-500 mb-1">Valor a Cobrar</label>
-                          <input
-                            type="number"
-                            placeholder="0"
-                            value={value}
-                            onChange={e => setValue(e.target.value)}
-                            className="w-full p-2.5 text-xl font-bold bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-indigo-600 dark:text-indigo-400"
-                          />
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-600 dark:text-indigo-400 font-bold">$</span>
+                            <input
+                              type="text"
+                              placeholder="0"
+                              value={value ? Number(value).toLocaleString('es-CO') : ''}
+                              onChange={e => {
+                                const raw = e.target.value.replace(/[^\d]/g, '');
+                                setValue(raw);
+                              }}
+                              className="w-full pl-7 pr-4 py-2.5 text-xl font-bold bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-indigo-600 dark:text-indigo-400"
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="block text-xs text-slate-500 dark:text-zinc-500 mb-1">Medio de Pago</label>

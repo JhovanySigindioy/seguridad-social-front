@@ -82,3 +82,24 @@ export const useUpdateAffiliation = () => {
     },
   });
 };
+
+export const useCloseAffiliation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, withdrawal_reason, withdrawal_observations }: {
+      id: number;
+      withdrawal_reason: 'Voluntario' | 'FinContrato' | 'Licencia' | 'Otro';
+      withdrawal_observations?: string;
+    }) => {
+      const { data } = await api.patch(`/affiliations/${id}/close`, {
+        withdrawal_reason,
+        withdrawal_observations,
+      });
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['affiliations'] });
+    },
+  });
+};

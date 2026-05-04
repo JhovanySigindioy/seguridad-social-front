@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, AlertCircle, Building, Heart, Shield, Landmark, CheckCircle2 } from 'lucide-react';
+import { X, Save, Building, Heart, Shield, Landmark, User, CheckCircle2 } from 'lucide-react';
 import { useAffiliationFormData, useCreateAffiliation } from '../hooks/useAffiliations';
+import { useToast } from '../../../components/Toast';
+import type { AffiliationCreateDTO } from '../types/affiliation.types';
 
 interface Props {
   isOpen: boolean;
@@ -11,11 +13,15 @@ interface Props {
 export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
   const { data: cat, isLoading } = useAffiliationFormData();
   const { mutateAsync: create, isPending } = useCreateAffiliation();
-
-  const [error, setError] = useState('');
+  const { showToast } = useToast();
 
   const [clientId, setClientId] = useState('');
+  const [clientSearch, setClientSearch] = useState('');
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [companyId, setCompanyId] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
   const [hasEps, setHasEps] = useState(false);
   const [hasArl, setHasArl] = useState(false);
   const [hasCcf, setHasCcf] = useState(false);
@@ -28,12 +34,26 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
   const [riskLevel, setRiskLevel] = useState('1');
 
   const [value, setValue] = useState('');
-  const [method, setMethod] = useState('');
+  const [method, setMethod] = useState<string>('');
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const filteredClients = useMemo(() => {
+    if (!cat?.clients) return [];
+    const search = clientSearch.toLowerCase();
+    return cat.clients.filter((c: any) => {
+      const fullName = `${c.first_name} ${c.second_name || ''} ${c.first_lastname} ${c.second_lastname || ''}`.toLowerCase();
+      return fullName.includes(search) || c.identification.toLowerCase().includes(search);
+    }).slice(0, 10);
+  }, [cat?.clients, clientSearch]);
 
   useEffect(() => {
     if (isOpen) {
       setClientId('');
+      setClientSearch('');
       setCompanyId('');
+      setStartDate(today);
+      setEndDate('');
       setValue('');
       setHasEps(false);
       setHasArl(false);
@@ -45,38 +65,41 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
       setPensionId('');
       setRiskLevel('1');
       setMethod('');
-      setError('');
+      setShowClientDropdown(false);
     }
-  }, [isOpen]);
+  }, [isOpen, today]);
 
   const handleSubmit = async () => {
-    setError('');
+    if (!clientId) return showToast('Selecciona un cliente.');
+    if (!companyId) return showToast('Selecciona la empresa.');
+    if (!startDate) return showToast('Ingresa la fecha de inicio.');
+    if (endDate && endDate < startDate) return showToast('La fecha de fin debe ser posterior a la fecha de inicio.');
+    if (hasEps && !epsId) return showToast('Selecciona la Entidad EPS.');
+    if (hasArl && !arlId) return showToast('Selecciona la Aseguradora ARL.');
+    if (hasCcf && !ccfId) return showToast('Selecciona la Caja de Compensación.');
+    if (hasPension && !pensionId) return showToast('Selecciona el Fondo de Pensión.');
+    if (!value || isNaN(Number(value))) return showToast('Ingresa un valor de cobro válido.');
 
-    if (!clientId) return setError('Selecciona un cliente.');
-    if (!companyId) return setError('Selecciona la empresa.');
-    if (hasEps && !epsId) return setError('Selecciona la Entidad EPS.');
-    if (hasArl && !arlId) return setError('Selecciona la Aseguradora ARL.');
-    if (hasCcf && !ccfId) return setError('Selecciona la Caja de Compensación.');
-    if (hasPension && !pensionId) return setError('Selecciona el Fondo de Pensión.');
-    if (!value || isNaN(Number(value))) return setError('Ingresa un valor de cobro válido.');
+    const formData: AffiliationCreateDTO = {
+      client_id: Number(clientId),
+      company_id: Number(companyId),
+      start_date: startDate,
+      end_date: endDate || undefined,
+      value: Number(value),
+      payment_method: (method || undefined) as AffiliationCreateDTO['payment_method'],
+      eps_id: hasEps ? Number(epsId) : null,
+      arl_id: hasArl ? Number(arlId) : null,
+      ccf_id: hasCcf ? Number(ccfId) : null,
+      pension_id: hasPension ? Number(pensionId) : null,
+      risk_level: hasArl ? riskLevel : null,
+      is_auto_renewed: !endDate,
+    };
 
     try {
-      await create({
-        client_id: Number(clientId),
-        company_id: Number(companyId),
-        value: Number(value),
-        payment_method: method || undefined,
-        eps_id: hasEps ? Number(epsId) : null,
-        arl_id: hasArl ? Number(arlId) : null,
-        ccf_id: hasCcf ? Number(ccfId) : null,
-        pension_id: hasPension ? Number(pensionId) : null,
-        risk_level: hasArl ? riskLevel : null,
-        is_auto_renewed: true,
-      });
-
+      await create(formData);
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al crear la afiliación');
+      showToast(err.response?.data?.error || err.data?.error || 'Error al crear la afiliación');
     }
   };
 
@@ -111,12 +134,12 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-5xl max-h-[90vh] bg-slate-50 dark:bg-zinc-950 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 flex flex-col overflow-hidden"
+            className="relative w-full max-w-6xl max-h-[90vh] bg-slate-50 dark:bg-zinc-950 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 flex flex-col overflow-hidden"
           >
             <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">Nueva Afiliación</h2>
-                <p className="text-xs text-slate-500 dark:text-zinc-400">Configura el perfil del afiliado</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">Registrar afiliación con fechas específicas</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800">
                 <X size={18} />
@@ -126,27 +149,61 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
             <div className="flex-1 overflow-hidden flex">
               {/* LEFT COLUMN */}
               <div className="w-5/12 border-r border-slate-200 dark:border-zinc-800 p-5 overflow-y-auto space-y-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                    <User size={16} className="text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">Trabajador y Empresa</span>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Cliente</label>
-                  <select
-                    value={clientId}
-                    onChange={e => { setClientId(e.target.value); setError(''); }}
-                    className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
-                  >
-                    <option value="">Seleccionar...</option>
-                    {cat?.clients?.map((c: any) => (
-                      <option key={c.id} value={c.id}>
-                        {c.first_name}{c.second_name ? ' ' + c.second_name : ''} {c.first_lastname}{c.second_lastname ? ' ' + c.second_lastname : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Buscar por nombre o cédula..."
+                      value={clientSearch}
+                      onChange={e => {
+                        setClientSearch(e.target.value);
+                        setClientId('');
+                        setShowClientDropdown(true);
+                      }}
+                      onFocus={() => setShowClientDropdown(true)}
+                      className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                    />
+                    {showClientDropdown && clientSearch && (
+                      <div className="absolute z-20 w-full mt-1 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {filteredClients.length === 0 ? (
+                          <div className="p-3 text-sm text-slate-400">No se encontraron clientes</div>
+                        ) : (
+                          filteredClients.map((c: any) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                setClientId(String(c.id));
+                                setClientSearch('');
+                                setShowClientDropdown(false);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors border-b border-slate-100 dark:border-zinc-800 last:border-b-0"
+                            >
+                              <span className="font-medium text-slate-800 dark:text-zinc-200">
+                                {c.first_name}{c.second_name ? ' ' + c.second_name : ''} {c.first_lastname}{c.second_lastname ? ' ' + c.second_lastname : ''}
+                              </span>
+                              <span className="ml-2 text-xs text-slate-400">{c.identification}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Empresa</label>
                   <select
                     value={companyId}
-                    onChange={e => { setCompanyId(e.target.value); setError(''); }}
+                    onChange={e => setCompanyId(e.target.value)}
                     className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
                   >
                     <option value="">Seleccionar...</option>
@@ -154,6 +211,13 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
+                </div>
+
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600 dark:text-indigo-400"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                  </div>
+                  <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">Fechas</span>
                 </div>
 
                 <div>
@@ -169,12 +233,6 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
 
               {/* RIGHT COLUMN */}
               <div className="flex-1 p-5 overflow-y-auto space-y-4">
-                {error && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/30 rounded-xl text-sm">
-                    <AlertCircle size={16} /> {error}
-                  </div>
-                )}
-
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -182,8 +240,39 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
                 ) : (
                   <>
                     <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600 dark:text-indigo-400"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                      </div>
+                      <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">Fechas</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Inicio Afiliación</label>
+                        <input
+                          type="date"
+                          value={startDate}
+                          max={today}
+                          onChange={e => setStartDate(e.target.value)}
+                          className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Fin Afiliación <span className="text-slate-400">(opcional)</span></label>
+                        <input
+                          type="date"
+                          value={endDate}
+                          min={startDate}
+                          onChange={e => setEndDate(e.target.value)}
+                          className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                        />
+                      </div>
+                    </div>
+                    </div>
+
+                    <div>
                       <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-2">Detalles de Entidades</label>
-                      
+
                       {!hasEps && !hasPension && !hasArl && !hasCcf && (
                         <div className="p-6 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-xl text-center text-slate-400 text-sm">
                           Activa un módulo a la izquierda
@@ -252,13 +341,19 @@ export const CreateAffiliationModal = ({ isOpen, onClose }: Props) => {
                       <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 space-y-3">
                         <div>
                           <label className="block text-xs text-slate-500 dark:text-zinc-500 mb-1">Valor a Cobrar</label>
-                          <input
-                            type="number"
-                            placeholder="0"
-                            value={value}
-                            onChange={e => setValue(e.target.value)}
-                            className="w-full p-2.5 text-xl font-bold bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-indigo-600 dark:text-indigo-400"
-                          />
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-600 dark:text-indigo-400 font-bold">$</span>
+                            <input
+                              type="text"
+                              placeholder="0"
+                              value={value ? Number(value).toLocaleString('es-CO') : ''}
+                              onChange={e => {
+                                const raw = e.target.value.replace(/[^\d]/g, '');
+                                setValue(raw);
+                              }}
+                              className="w-full pl-7 pr-4 py-2.5 text-xl font-bold bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-indigo-600 dark:text-indigo-400"
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="block text-xs text-slate-500 dark:text-zinc-500 mb-1">Medio de Pago</label>

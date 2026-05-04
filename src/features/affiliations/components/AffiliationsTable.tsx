@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, Eye } from 'lucide-react';
 import { useAffiliations, useUpdateAffiliationStatus } from '../hooks/useAffiliations';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { PAYMENT_STATUSES, type AffiliationItem, type PaymentStatus } from '../types/affiliation.types';
@@ -163,6 +163,24 @@ export const AffiliationsTable = () => {
     </div>
   );
 
+  const getAffiliationStatus = (item: AffiliationItem) => {
+    if (item.status === 'Inactivo') {
+      return { label: 'Inactiva', className: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' };
+    }
+    if (item.status === 'Activo' && item.end_date) {
+      const endDate = new Date(item.end_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (endDate < today) {
+        return { label: 'Vencida', className: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' };
+      }
+    }
+    if (item.status === 'Activo') {
+      return { label: 'Activa', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' };
+    }
+    return { label: 'Desconocido', className: 'bg-slate-100 text-slate-500' };
+  };
+
   return (
     <div className="flex flex-col gap-4">
       {/* Toolbar */}
@@ -209,7 +227,7 @@ export const AffiliationsTable = () => {
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm min-h-[400px]">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50">
@@ -219,7 +237,9 @@ export const AffiliationsTable = () => {
                 { label: 'Fechas', field: 'gov_record_at' },
                 { label: 'Servicios', field: 'eps_name' },
                 { label: 'Valor', field: 'value' },
-                { label: 'Estado', field: 'payment_status' },
+                { label: 'Estado', field: 'status' },
+                { label: 'Pago', field: 'payment_status' },
+                { label: 'Acciones', field: 'actions' },
               ].map(col => (
                 <th
                   key={col.field}
@@ -235,7 +255,7 @@ export const AffiliationsTable = () => {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="border-b border-slate-50 dark:border-zinc-800/60">
-                  {Array.from({ length: 6 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <td key={j} className="px-4 py-3.5">
                       <div className="h-3 bg-slate-100 dark:bg-zinc-800 rounded-full animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
                     </td>
@@ -244,21 +264,20 @@ export const AffiliationsTable = () => {
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-20 text-slate-400">
+                <td colSpan={8} className="text-center py-20 text-slate-400">
                   <FileText size={40} className="mx-auto mb-3 opacity-30" />
                   <p>No se encontraron afiliaciones</p>
                 </td>
               </tr>
             ) : (
-              <AnimatePresence mode="popLayout">
+              <>
                 {paginated.map((item, index) => (
                   <motion.tr
                     key={item.id}
-                    initial={{ opacity: 0, y: 6 }}
+                    initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03, duration: 0.2 }}
-                    onClick={() => setSelectedItem(item)}
-                    className="border-b border-slate-50 dark:border-zinc-800/60 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group cursor-pointer"
+                    transition={{ delay: Math.min(index * 0.02, 0.15), duration: 0.15 }}
+                    className="border-b border-slate-50 dark:border-zinc-800/60 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group"
                   >
                     <td className="px-4 py-3.5">
                       <div>
@@ -289,47 +308,69 @@ export const AffiliationsTable = () => {
                         ${Number(item.value).toLocaleString('es-CO')}
                       </span>
                     </td>
+                    <td className="px-4 py-3.5">
+                      {(() => {
+                        const affStatus = getAffiliationStatus(item);
+                        return (
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${affStatus.className}`}>
+                            {affStatus.label}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
+                      {item.status === 'Inactivo' ? (
+                        <StatusBadge status={item.payment_status} />
+                      ) : canChangeStatus ? (
+                        <div
+                          title={isStatusLocked(item) ? 'Estado pagado bloqueado para office_manager' : 'Cambiar estado'}
+                          className={`inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${STATUS_STYLES[item.payment_status].select} ${isStatusLocked(item) ? 'cursor-not-allowed opacity-80' : ''}`}
+                        >
+                          <span className={`h-2 w-2 rounded-full ${STATUS_STYLES[item.payment_status].dot}`} />
+                          {isStatusLocked(item) ? (
+                            <span className="min-w-[80px]">{item.payment_status}</span>
+                          ) : (
+                            <select
+                              aria-label="Cambiar estado"
+                              value={item.payment_status}
+                              disabled={updatingStatusId === item.id}
+                              onChange={event => handleStatusChange(item, event.target.value as PaymentStatus)}
+                              className="min-w-[90px] cursor-pointer bg-transparent text-xs font-semibold outline-none disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {getStatusOptions(item.payment_status).map(status => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      ) : (
+                        <StatusBadge status={item.payment_status} />
+                      )}
+                    </td>
                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setEditingItem(item)}
+                          onClick={() => setSelectedItem(item)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-                          title="Editar afiliación"
+                          title="Ver detalles"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          onClick={() => item.status !== 'Inactivo' && setEditingItem(item)}
+                          disabled={item.status === 'Inactivo'}
+                          className={`p-1.5 rounded-lg transition-colors ${item.status === 'Inactivo' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'}`}
+                          title={item.status === 'Inactivo' ? 'Afiliación inactiva, no editable' : 'Editar afiliación'}
                         >
                           <Pencil size={15} />
                         </button>
-                        {canChangeStatus ? (
-                          <div
-                            title={isStatusLocked(item) ? 'Estado pagado bloqueado para office_manager' : 'Cambiar estado'}
-                            className={`inline-flex min-w-[138px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${STATUS_STYLES[item.payment_status].select} ${isStatusLocked(item) ? 'cursor-not-allowed opacity-80' : ''}`}
-                          >
-                            <span className={`h-2 w-2 rounded-full ${STATUS_STYLES[item.payment_status].dot}`} />
-                            {isStatusLocked(item) ? (
-                              <span className="min-w-[94px]">{item.payment_status}</span>
-                            ) : (
-                              <select
-                                aria-label="Cambiar estado"
-                                value={item.payment_status}
-                                disabled={updatingStatusId === item.id}
-                                onChange={event => handleStatusChange(item, event.target.value as PaymentStatus)}
-                                className="min-w-[104px] cursor-pointer bg-transparent text-xs font-semibold outline-none disabled:cursor-wait disabled:opacity-60"
-                              >
-                                {getStatusOptions(item.payment_status).map(status => (
-                                  <option key={status} value={status}>
-                                    {status}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          </div>
-                        ) : (
-                          <StatusBadge status={item.payment_status} />
-                        )}
                       </div>
                     </td>
                   </motion.tr>
                 ))}
-              </AnimatePresence>
+              </>
             )}
           </tbody>
         </table>
