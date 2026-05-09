@@ -9,6 +9,8 @@ export interface Client {
   full_name?: string;
   identification: string;
   email: string | null;
+  phone_1?: string | null;
+  phone_2?: string | null;
   office_id: number;
   office_name?: string;
   created_at: string;
@@ -22,6 +24,8 @@ export interface CreateClientDTO {
   second_lastname?: string;
   identification: string;
   email?: string;
+  phone_1?: string;
+  phone_2?: string;
   office_id: number;
 }
 
@@ -33,4 +37,6 @@ export interface UpdateClientDTO {
   second_lastname?: string;
   identification: string;
   email?: string;
+  phone_1?: string;
+  phone_2?: string;
 }

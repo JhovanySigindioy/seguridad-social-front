@@ -19,6 +19,10 @@ function App() {
           path="/" 
           element={token ? <DashboardPage /> : <Navigate to="/login" />} 
         />
+        <Route 
+          path="/affiliations" 
+          element={token ? <DashboardPage tab="affiliations" /> : <Navigate to="/login" />} 
+        />
       </Routes>
     </BrowserRouter>
     </ToastProvider>

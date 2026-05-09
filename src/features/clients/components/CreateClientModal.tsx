@@ -23,7 +23,8 @@ export const CreateClientModal = ({ isOpen, onClose }: Props) => {
   const [secondLastname, setSecondLastname] = useState('');
   const [identification, setIdentification] = useState('');
   const [email, setEmail] = useState('');
-  const [officeId, setOfficeId] = useState('');
+  const [phone1, setPhone1] = useState('');
+  const [phone2, setPhone2] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -34,17 +35,11 @@ export const CreateClientModal = ({ isOpen, onClose }: Props) => {
       setSecondLastname('');
       setIdentification('');
       setEmail('');
+      setPhone1('');
+      setPhone2('');
       setError('');
-      
-      if (user?.role === 'admin' && activeOfficeId) {
-        setOfficeId(String(activeOfficeId));
-      } else if (user?.role === 'admin' && offices?.length === 1) {
-        setOfficeId(String(offices[0]));
-      } else if (user?.role !== 'admin' && offices?.length > 0) {
-        setOfficeId(String(offices[0]));
-      }
     }
-  }, [isOpen, user, activeOfficeId, offices]);
+  }, [isOpen]);
 
   const handleSubmit = async () => {
     setError('');
@@ -53,7 +48,9 @@ export const CreateClientModal = ({ isOpen, onClose }: Props) => {
     if (!firstName.trim()) return setError('Ingresa el primer nombre.');
     if (!firstLastname.trim()) return setError('Ingresa el primer apellido.');
     if (!identification) return setError('Ingresa el número de identificación.');
-    if (!officeId) return setError('Selecciona la oficina.');
+    
+    const currentOfficeId = activeOfficeId || (offices?.length > 0 ? offices[0] : null);
+    if (!currentOfficeId) return setError('No hay una oficina activa para crear el cliente.');
 
     try {
       await create({
@@ -64,7 +61,9 @@ export const CreateClientModal = ({ isOpen, onClose }: Props) => {
         second_lastname: secondLastname.trim() || undefined,
         identification,
         email: email.trim() || undefined,
-        office_id: Number(officeId),
+        phone_1: phone1.trim() || undefined,
+        phone_2: phone2.trim() || undefined,
+        office_id: currentOfficeId,
       });
 
       onClose();
@@ -72,8 +71,6 @@ export const CreateClientModal = ({ isOpen, onClose }: Props) => {
       setError(err.response?.data?.error || 'Error al crear el cliente');
     }
   };
-
-  const isAdmin = user?.role === 'admin';
 
   return (
     <AnimatePresence>
@@ -205,20 +202,28 @@ export const CreateClientModal = ({ isOpen, onClose }: Props) => {
                       className="w-full p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl outline-none focus:border-indigo-500 text-slate-800 dark:text-zinc-200"
                     />
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1.5">Oficina *</label>
-                    <select
-                      value={officeId}
-                      onChange={e => setOfficeId(e.target.value)}
-                      disabled={!isAdmin && offices?.length === 1}
-                      className="w-full p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl outline-none focus:border-indigo-500 text-slate-800 dark:text-zinc-200 disabled:opacity-60"
-                    >
-                      <option value="">Seleccionar...</option>
-                      {formData?.offices?.map((o: any) => (
-                        <option key={o.id} value={o.id}>{o.name}</option>
-                      ))}
-                    </select>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1.5">Número de Contacto 1</label>
+                      <input
+                        type="text"
+                        value={phone1}
+                        onChange={e => setPhone1(e.target.value)}
+                        placeholder="Ej: 3001234567"
+                        className="w-full p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl outline-none focus:border-indigo-500 text-slate-800 dark:text-zinc-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1.5">Número de Contacto 2</label>
+                      <input
+                        type="text"
+                        value={phone2}
+                        onChange={e => setPhone2(e.target.value)}
+                        placeholder="Ej: 3109876543"
+                        className="w-full p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl outline-none focus:border-indigo-500 text-slate-800 dark:text-zinc-200"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

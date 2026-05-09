@@ -33,6 +33,7 @@ export interface AffiliationItem {
   is_auto_renewed: boolean;
   observation: string | null;
   withdrawal_reason: WithdrawalReason | null;
+  office_name: string;
 }
 
 export interface AffiliationListResponse {

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, Eye } from 'lucide-react';
+import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, Eye, UserPlus } from 'lucide-react';
 import { useAffiliations, useUpdateAffiliationStatus } from '../hooks/useAffiliations';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { PAYMENT_STATUSES, type AffiliationItem, type PaymentStatus } from '../types/affiliation.types';
@@ -54,7 +54,11 @@ const formatDate = (value?: string | null) => {
   }).format(date);
 };
 
-export const AffiliationsTable = () => {
+interface AffiliationsTableProps {
+  onNewAffiliation?: () => void;
+}
+
+export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) => {
   const { data: affiliations, isLoading, isError, refetch, isFetching } = useAffiliations();
   const { user } = useAuthStore();
   const updateStatus = useUpdateAffiliationStatus();
@@ -132,11 +136,10 @@ export const AffiliationsTable = () => {
     const isActive = statusFilter === status;
 
     if (status === 'all') {
-      return `${base} ${
-        isActive
+      return `${base} ${isActive
           ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
           : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400'
-      }`;
+        }`;
     }
 
     return `${base} ${isActive ? STATUS_STYLES[status].filterActive : STATUS_STYLES[status].filterIdle}`;
@@ -183,18 +186,31 @@ export const AffiliationsTable = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar por nombre, cédula o empresa..."
-            value={search}
-            onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-9 pr-4 py-2.5 text-sm bg-white dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-zinc-200 placeholder-slate-400"
-          />
+      {/* Toolbar: Search + Nueva Afiliación button */}
+      <div className="flex flex-col sm:flex-row gap-3 items-center sm:items-center">
+        <div className="flex flex-1 items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-sm">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, cédula o empresa..."
+              value={search}
+              onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+              className="w-full pl-9 pr-4 py-2.5 text-sm bg-white dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-zinc-200 placeholder-slate-400"
+            />
+          </div>
+          <button
+            onClick={onNewAffiliation}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all shadow-md shadow-indigo-500/20 whitespace-nowrap"
+          >
+            <UserPlus size={16} />
+            Nueva Afiliación
+          </button>
         </div>
+      </div>
+
+      {/* Count + Filters: 2 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-center">
         <div className="flex items-center gap-2">
           {(['all', 'Pendiente', 'En Proceso', 'Pagado'] as const).map(s => (
             <button
@@ -205,6 +221,11 @@ export const AffiliationsTable = () => {
               {s === 'all' ? 'Todos' : s}
             </button>
           ))}
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">
+            {isLoading ? 'Cargando...' : `${filtered.length} registro${filtered.length !== 1 ? 's' : ''} encontrado${filtered.length !== 1 ? 's' : ''}`}
+          </p>
           <button
             onClick={() => refetch()}
             disabled={isFetching}
@@ -215,11 +236,6 @@ export const AffiliationsTable = () => {
           </button>
         </div>
       </div>
-
-      {/* Count */}
-      <p className="text-xs text-slate-400 dark:text-zinc-500">
-        {isLoading ? 'Cargando...' : `${filtered.length} registro${filtered.length !== 1 ? 's' : ''} encontrado${filtered.length !== 1 ? 's' : ''}`}
-      </p>
       {statusError && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-600 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-400">
           {statusError}
@@ -234,6 +250,7 @@ export const AffiliationsTable = () => {
               {[
                 { label: 'Cliente', field: 'client_name' },
                 { label: 'Empresa', field: 'company_name' },
+                { label: 'Oficina', field: 'office_name' },
                 { label: 'Fechas', field: 'gov_record_at' },
                 { label: 'Servicios', field: 'eps_name' },
                 { label: 'Valor', field: 'value' },
@@ -255,7 +272,7 @@ export const AffiliationsTable = () => {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="border-b border-slate-50 dark:border-zinc-800/60">
-                  {Array.from({ length: 8 }).map((_, j) => (
+                  {Array.from({ length: 9 }).map((_, j) => (
                     <td key={j} className="px-4 py-3.5">
                       <div className="h-3 bg-slate-100 dark:bg-zinc-800 rounded-full animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
                     </td>
@@ -264,7 +281,7 @@ export const AffiliationsTable = () => {
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-20 text-slate-400">
+                <td colSpan={9} className="text-center py-20 text-slate-400">
                   <FileText size={40} className="mx-auto mb-3 opacity-30" />
                   <p>No se encontraron afiliaciones</p>
                 </td>
@@ -287,6 +304,11 @@ export const AffiliationsTable = () => {
                     </td>
                     <td className="px-4 py-3.5 text-slate-600 dark:text-zinc-400 max-w-[180px] truncate">{item.company_name}</td>
                     <td className="px-4 py-3.5">
+                      <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded text-[10px] font-semibold">
+                        {item.office_name || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
                       <div className="text-[11px] leading-tight text-slate-500 dark:text-zinc-400">
                         <p><span className="font-bold text-slate-600 dark:text-zinc-300">Recibido:</span> {formatDate(item.created_at)}</p>
                         <p><span className="font-bold text-emerald-600 dark:text-emerald-400">Pagado:</span> {formatDate(item.gov_record_at)}</p>
@@ -299,7 +321,7 @@ export const AffiliationsTable = () => {
                         {item.arl_name !== '—' && <span className="px-1.5 py-0.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded text-[10px] font-bold border border-amber-100 dark:border-amber-900/30">ARL</span>}
                         {item.ccf_name !== '—' && <span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded text-[10px] font-bold border border-blue-100 dark:border-blue-900/30">CCF</span>}
                         {item.eps_name === '—' && item.pension_name === '—' && item.arl_name === '—' && item.ccf_name === '—' && (
-                           <span className="text-[10px] text-slate-400 font-bold border border-slate-200 dark:border-zinc-800 px-1.5 py-0.5 rounded">N/A</span>
+                          <span className="text-[10px] text-slate-400 font-bold border border-slate-200 dark:border-zinc-800 px-1.5 py-0.5 rounded">N/A</span>
                         )}
                       </div>
                     </td>
@@ -374,7 +396,7 @@ export const AffiliationsTable = () => {
             )}
           </tbody>
         </table>
-        
+
         {/* Pagination Controls */}
         {totalPages > 1 && (
           <div className="px-4 py-3 border-t border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/30 flex items-center justify-between">
@@ -382,7 +404,7 @@ export const AffiliationsTable = () => {
               Mostrando {(currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, filtered.length)} de {filtered.length}
             </p>
             <div className="flex items-center gap-1">
-              <button 
+              <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors"
@@ -392,7 +414,7 @@ export const AffiliationsTable = () => {
               <span className="px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-zinc-200">
                 {currentPage} / {totalPages}
               </span>
-              <button 
+              <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
                 className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors"
@@ -404,10 +426,10 @@ export const AffiliationsTable = () => {
         )}
       </div>
 
-      <AffiliationDetailsModal 
-        isOpen={!!selectedItem} 
-        data={selectedItem} 
-        onClose={() => setSelectedItem(null)} 
+      <AffiliationDetailsModal
+        isOpen={!!selectedItem}
+        data={selectedItem}
+        onClose={() => setSelectedItem(null)}
       />
 
       <EditAffiliationModal
