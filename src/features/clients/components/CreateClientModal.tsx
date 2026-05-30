@@ -12,7 +12,7 @@ interface Props {
 export const CreateClientModal = ({ isOpen, onClose }: Props) => {
   const { data: formData, isLoading } = useClientFormData();
   const { mutateAsync: create, isPending } = useCreateClient();
-  const { user, activeOfficeId, offices } = useAuthStore();
+  const { activeOfficeId, offices } = useAuthStore();
 
   const [error, setError] = useState('');
 

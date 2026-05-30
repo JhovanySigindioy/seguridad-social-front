@@ -59,7 +59,11 @@ interface AffiliationsTableProps {
 }
 
 export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) => {
-  const { data: affiliations, isLoading, isError, refetch, isFetching } = useAffiliations();
+  const currentDate = new Date();
+  const [filterMonth, setFilterMonth] = useState<number>(currentDate.getMonth() + 1);
+  const [filterYear, setFilterYear] = useState<number>(currentDate.getFullYear());
+
+  const { data: affiliations, isLoading, isError, refetch, isFetching } = useAffiliations(filterMonth, filterYear);
   const { user } = useAuthStore();
   const updateStatus = useUpdateAffiliationStatus();
   const [search, setSearch] = useState('');
@@ -112,14 +116,20 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
   };
 
   const handleStatusChange = (item: AffiliationItem, paymentStatus: PaymentStatus) => {
-    if (item.payment_status === paymentStatus) return;
-    if (isOfficeManager && item.payment_status === 'Pagado') return;
+    const currentPaymentStatus = item.payment_status;
+    if (currentPaymentStatus === paymentStatus) return;
+    if (isOfficeManager && currentPaymentStatus === 'Pagado') return;
 
     setStatusError(null);
     setUpdatingStatusId(item.id);
 
     updateStatus.mutate(
-      { id: item.id, payment_status: paymentStatus },
+      { 
+        id: item.id, 
+        payment_status: paymentStatus, 
+        month: item.month || selectedMonth, 
+        year: item.year || selectedYear 
+      },
       {
         onError: (error: any) => {
           setStatusError(error.response?.data?.error || 'No se pudo actualizar el estado');
@@ -186,10 +196,10 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Toolbar: Search + Nueva Afiliación button */}
+      {/* Toolbar: Search + Filters + Nueva Afiliación button */}
       <div className="flex flex-col sm:flex-row gap-3 items-center sm:items-center">
-        <div className="flex flex-1 items-center justify-between gap-3">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-1 items-center justify-between gap-3 flex-wrap">
+          <div className="relative flex-1 max-w-sm min-w-[200px]">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
@@ -199,9 +209,41 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
               className="w-full pl-9 pr-4 py-2.5 text-sm bg-white dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-zinc-200 placeholder-slate-400"
             />
           </div>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={filterMonth}
+              onChange={e => { setFilterMonth(Number(e.target.value)); setCurrentPage(1); }}
+              className="py-2.5 px-3 text-sm bg-white dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-zinc-200"
+            >
+              <option value={1}>Enero</option>
+              <option value={2}>Febrero</option>
+              <option value={3}>Marzo</option>
+              <option value={4}>Abril</option>
+              <option value={5}>Mayo</option>
+              <option value={6}>Junio</option>
+              <option value={7}>Julio</option>
+              <option value={8}>Agosto</option>
+              <option value={9}>Septiembre</option>
+              <option value={10}>Octubre</option>
+              <option value={11}>Noviembre</option>
+              <option value={12}>Diciembre</option>
+            </select>
+
+            <select
+              value={filterYear}
+              onChange={e => { setFilterYear(Number(e.target.value)); setCurrentPage(1); }}
+              className="py-2.5 px-3 text-sm bg-white dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-zinc-200"
+            >
+              {[currentDate.getFullYear() - 1, currentDate.getFullYear(), currentDate.getFullYear() + 1].map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+
           <button
             onClick={onNewAffiliation}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all shadow-md shadow-indigo-500/20 whitespace-nowrap"
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-all shadow-md shadow-indigo-500/20 whitespace-nowrap ml-auto"
           >
             <UserPlus size={16} />
             Nueva Afiliación
@@ -341,35 +383,38 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
                       })()}
                     </td>
                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
-                      {item.status === 'Inactivo' ? (
-                        <StatusBadge status={item.payment_status} />
-                      ) : canChangeStatus ? (
-                        <div
-                          title={isStatusLocked(item) ? 'Estado pagado bloqueado para office_manager' : 'Cambiar estado'}
-                          className={`inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${STATUS_STYLES[item.payment_status].select} ${isStatusLocked(item) ? 'cursor-not-allowed opacity-80' : ''}`}
-                        >
-                          <span className={`h-2 w-2 rounded-full ${STATUS_STYLES[item.payment_status].dot}`} />
-                          {isStatusLocked(item) ? (
-                            <span className="min-w-[80px]">{item.payment_status}</span>
-                          ) : (
-                            <select
-                              aria-label="Cambiar estado"
-                              value={item.payment_status}
-                              disabled={updatingStatusId === item.id}
-                              onChange={event => handleStatusChange(item, event.target.value as PaymentStatus)}
-                              className="min-w-[90px] cursor-pointer bg-transparent text-xs font-semibold outline-none disabled:cursor-wait disabled:opacity-60"
-                            >
-                              {getStatusOptions(item.payment_status).map(status => (
-                                <option key={status} value={status}>
-                                  {status}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-                      ) : (
-                        <StatusBadge status={item.payment_status} />
-                      )}
+                      {(() => {
+                        const currentPaymentStatus = item.payment_status;
+                        return item.status === 'Inactivo' ? (
+                          <StatusBadge status={currentPaymentStatus} />
+                        ) : canChangeStatus ? (
+                          <div
+                            title={isStatusLocked(item) ? 'Estado pagado bloqueado para office_manager' : 'Cambiar estado'}
+                            className={`inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${STATUS_STYLES[currentPaymentStatus].select} ${isStatusLocked(item) ? 'cursor-not-allowed opacity-80' : ''}`}
+                          >
+                            <span className={`h-2 w-2 rounded-full ${STATUS_STYLES[currentPaymentStatus].dot}`} />
+                            {isStatusLocked(item) ? (
+                              <span className="min-w-[80px]">{currentPaymentStatus}</span>
+                            ) : (
+                              <select
+                                aria-label="Cambiar estado"
+                                value={currentPaymentStatus}
+                                disabled={updatingStatusId === item.id}
+                                onChange={event => handleStatusChange(item, event.target.value as PaymentStatus)}
+                                className="min-w-[90px] cursor-pointer bg-transparent text-xs font-semibold outline-none disabled:cursor-wait disabled:opacity-60"
+                              >
+                                {getStatusOptions(currentPaymentStatus).map(status => (
+                                  <option key={status} value={status}>
+                                    {status}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        ) : (
+                          <StatusBadge status={currentPaymentStatus} />
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
                       <div className="flex items-center gap-2">

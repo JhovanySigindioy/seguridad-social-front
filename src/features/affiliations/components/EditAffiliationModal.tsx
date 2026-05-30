@@ -43,8 +43,17 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
       setValue(String(affiliation.value));
       setMethod((affiliation as any).payment_method || '');
       setIsAutoRenewed(Boolean(affiliation.is_auto_renewed));
-      setStartDate(affiliation.start_date || '');
-      setEndDate(affiliation.end_date || '');
+      const formatDate = (date: string | null) => {
+        if (!date) return '';
+        try {
+          return new Date(date).toISOString().split('T')[0];
+        } catch {
+          return '';
+        }
+      };
+
+      setStartDate(formatDate(affiliation.start_date));
+      setEndDate(formatDate(affiliation.end_date));
 
       const hasEpsVal = affiliation.eps_name && affiliation.eps_name !== '—';
       const hasArlVal = affiliation.arl_name && affiliation.arl_name !== '—';
@@ -58,21 +67,22 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
 
       setRiskLevel(affiliation.risk_level || '1');
 
-      if (cat?.eps && hasEpsVal) {
-        const eps = cat.eps.find((e: any) => e.name === affiliation.eps_name);
-        if (eps) setEpsId(String(eps.id));
+      // Map entity IDs by name from catalogs
+      if (cat?.eps) {
+        const found = cat.eps.find((e: any) => e.name === affiliation.eps_name);
+        if (found) setEpsId(String(found.id));
       }
-      if (cat?.arl && hasArlVal) {
-        const arl = cat.arl.find((a: any) => a.name === affiliation.arl_name);
-        if (arl) setArlId(String(arl.id));
+      if (cat?.arl) {
+        const found = cat.arl.find((a: any) => a.name === affiliation.arl_name);
+        if (found) setArlId(String(found.id));
       }
-      if (cat?.ccf && hasCcfVal) {
-        const ccf = cat.ccf.find((c: any) => c.name === affiliation.ccf_name);
-        if (ccf) setCcfId(String(ccf.id));
+      if (cat?.ccf) {
+        const found = cat.ccf.find((c: any) => c.name === affiliation.ccf_name);
+        if (found) setCcfId(String(found.id));
       }
-      if (cat?.pensions && hasPensionVal) {
-        const pen = cat.pensions.find((p: any) => p.name === affiliation.pension_name);
-        if (pen) setPensionId(String(pen.id));
+      if (cat?.pensions) {
+        const found = cat.pensions.find((p: any) => p.name === affiliation.pension_name);
+        if (found) setPensionId(String(found.id));
       }
     }
   }, [affiliation, isOpen, cat]);
@@ -101,6 +111,8 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
         pension_id: hasPension ? Number(pensionId) : null,
         risk_level: hasArl ? riskLevel : null,
         is_auto_renewed: isAutoRenewed,
+        month: affiliation?.month,
+        year: affiliation?.year,
       });
 
       showToast('Afiliación actualizada exitosamente', 'success');

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Save, Heart, Shield, Landmark, Building, CheckCircle2, User } from 'lucide-react';
-import { useAffiliationFormData, useCreateAffiliation } from '../hooks/useAffiliations';
+import { useAffiliationFormData, useCreateAffiliation, useLatestAffiliationByClient } from '../hooks/useAffiliations';
 import { useToast } from '../../../components/Toast';
 import type { AffiliationCreateDTO } from '../types/affiliation.types';
 
@@ -43,6 +43,24 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     ccf: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
   });
 
+  const { data: latestAffiliation, isFetching: isFetchingLatest } = useLatestAffiliationByClient(clientId);
+
+  useEffect(() => {
+    if (latestAffiliation) {
+      setCompanyId(String(latestAffiliation.company_id));
+      setValue(String(latestAffiliation.value));
+      
+      setServices(prev => ({
+        eps: { ...prev.eps, active: !!latestAffiliation.eps_id, entityId: latestAffiliation.eps_id ? String(latestAffiliation.eps_id) : '' },
+        pension: { ...prev.pension, active: !!latestAffiliation.pension_id, entityId: latestAffiliation.pension_id ? String(latestAffiliation.pension_id) : '' },
+        arl: { ...prev.arl, active: !!latestAffiliation.arl_id, entityId: latestAffiliation.arl_id ? String(latestAffiliation.arl_id) : '', riskLevel: latestAffiliation.risk_level ? String(latestAffiliation.risk_level) : '1' },
+        ccf: { ...prev.ccf, active: !!latestAffiliation.ccf_id, entityId: latestAffiliation.ccf_id ? String(latestAffiliation.ccf_id) : '' },
+      }));
+
+      showToast('Formulario autocompletado con la última afiliación', 'success');
+    }
+  }, [latestAffiliation, showToast]);
+
   const [value, setValue] = useState('');
   const [method, setMethod] = useState<string>('');
 
@@ -82,6 +100,14 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     if (services.pension.active && !services.pension.entityId) return showToast('Selecciona el Fondo de Pensión.');
     if (!value || isNaN(Number(value))) return showToast('Ingresa un valor de cobro válido.');
 
+    // Validar que todos los servicios activos tengan fecha de fin
+    const activeEntries = Object.entries(services).filter(([, s]) => s.active);
+    for (const [name, service] of activeEntries) {
+      if (!service.endDate) {
+        return showToast(`La fecha de fin es obligatoria para el servicio de ${name.toUpperCase()}.`);
+      }
+    }
+
     const formData: AffiliationCreateDTO = {
       client_id: Number(clientId),
       company_id: Number(companyId),
@@ -94,7 +120,7 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
       ccf_id: services.ccf.active ? Number(services.ccf.entityId) : null,
       pension_id: services.pension.active ? Number(services.pension.entityId) : null,
       risk_level: services.arl.active ? services.arl.riskLevel : null,
-      is_auto_renewed: !services.eps.endDate && !services.pension.endDate && !services.arl.endDate && !services.ccf.endDate,
+      is_auto_renewed: false, // Ya no es automático por defecto si obligamos a poner fin
     };
 
     try {
@@ -121,9 +147,12 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
               {/* Row 1: Worker + Company */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-2">
+                  <label className="flex items-center text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-2">
                     <User size={12} className="inline mr-1" />
                     Trabajador
+                    {isFetchingLatest && (
+                      <div className="ml-2 animate-spin rounded-full h-3 w-3 border-b-2 border-indigo-600"></div>
+                    )}
                   </label>
                   <div className="relative">
                     <input
@@ -268,6 +297,7 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
                               </div>
                             )}
                             <div>
+                              <label className="block text-[10px] text-slate-400 mb-0.5 ml-1 italic font-medium">Inicio</label>
                               <input
                                 type="date"
                                 value={service.startDate}
@@ -276,8 +306,10 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
                               />
                             </div>
                             <div>
+                              <label className="block text-[10px] text-slate-400 mb-0.5 ml-1 italic font-medium">Fin (Obligatorio)</label>
                               <input
                                 type="date"
+                                required
                                 value={service.endDate}
                                 min={service.startDate}
                                 onChange={e => handleServiceChange(key as keyof typeof SERVICE_CONFIG, 'endDate', e.target.value)}

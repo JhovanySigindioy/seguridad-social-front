@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogIn, Mail, Lock, Eye, EyeOff, Loader2, Sun, Moon, ShieldCheck } from 'lucide-react';
 import api from '../services/api/axios-instance';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
+import type { LoginResponse } from '../types/auth.types';
+
+const loginRequest = (credentials: { email: string; password: string }) =>
+  api.post<{ success: boolean; data: LoginResponse }>('/auth/login', credentials)
+    .then((res) => res.data.data);
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
+  // Solo para errores de credenciales (400) — UI local de este formulario
+  const [formError, setFormError] = useState<string | null>(null);
+
   const setAuth = useAuthStore(state => state.setAuth);
   const { theme, toggleTheme } = useThemeStore();
 
@@ -20,23 +26,25 @@ export const LoginPage = () => {
     if (theme === 'dark') document.documentElement.classList.add('dark');
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await api.post('/auth/login', { email, password });
-      const { token, user, offices } = response.data.data;
+  const { mutate: login, isPending } = useMutation({
+    mutationFn: loginRequest,
+    onSuccess: ({ token, user, offices }) => {
       setAuth(token, user, offices);
-    } catch (err: any) {
-      console.error('Login Error Details:', err);
-      const serverMessage = err.response?.data?.error;
-      const status = err.response?.status;
-      setError(serverMessage || `Error de conexión (${status || 'Network Error'})`);
-    } finally {
-      setLoading(false);
-    }
+    },
+    onError: (error: any) => {
+      // Los errores globales (401, 403, 500, red) ya los maneja el interceptor de Axios.
+      // Aquí solo capturamos el 400: credenciales incorrectas (error de UX local).
+      const status = error?.response?.status;
+      if (status === 400 || status === 401) {
+        setFormError(error?.response?.data?.error || 'Credenciales inválidas. Verifica tu correo y contraseña.');
+      }
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    login({ email, password });
   };
 
   return (
@@ -140,24 +148,24 @@ export const LoginPage = () => {
             </div>
 
             <AnimatePresence>
-              {error && (
+              {formError && (
                 <motion.div 
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 p-3 rounded-lg"
                 >
-                  <p className="text-red-600 dark:text-red-400 text-sm font-medium text-center">{error}</p>
+                  <p className="text-red-600 dark:text-red-400 text-sm font-medium text-center">{formError}</p>
                 </motion.div>
               )}
             </AnimatePresence>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={isPending}
               className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-4"
             >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
+              {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : (
                 <>
                   <span>Iniciar Sesión</span>
                   <LogIn size={18} />

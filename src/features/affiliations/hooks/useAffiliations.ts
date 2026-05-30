@@ -2,14 +2,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../../services/api/axios-instance';
 import type { AffiliationItem, PaymentStatus } from '../types/affiliation.types';
 
-export const useAffiliations = () => {
+export const useAffiliations = (month?: number, year?: number) => {
   return useQuery({
-    queryKey: ['affiliations'],
+    queryKey: ['affiliations', month, year],
     queryFn: async (): Promise<AffiliationItem[]> => {
-      const { data } = await api.get('/affiliations');
+      const { data } = await api.get('/affiliations', { 
+        params: { 
+          month, 
+          year,
+          _t: Date.now() // Cache busting
+        } 
+      });
       return data.data.items;
     },
-    staleTime: 1000 * 60 * 2, // 2 minutos
+    staleTime: 0, // Force fresh data
   });
 };
 
@@ -21,6 +27,19 @@ export const useAffiliationFormData = () => {
       return data.data;
     },
     staleTime: 1000 * 60 * 60, // 1 hora
+  });
+};
+
+export const useLatestAffiliationByClient = (clientId: string | null) => {
+  return useQuery({
+    queryKey: ['affiliations', 'latest', clientId],
+    queryFn: async () => {
+      if (!clientId) return null;
+      const { data } = await api.get(`/affiliations/latest-by-client/${clientId}`);
+      return data.data;
+    },
+    enabled: !!clientId,
+    staleTime: 0, // Always fetch fresh to ensure we have the absolute latest if they just closed one
   });
 };
 
@@ -43,28 +62,29 @@ export const useUpdateAffiliationStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, payment_status }: { id: number; payment_status: PaymentStatus }) => {
-      const { data } = await api.patch(`/affiliations/${id}/status`, { payment_status });
+    mutationFn: async ({ id, payment_status, month, year }: { id: number; payment_status: PaymentStatus; month: number; year: number }) => {
+      const { data } = await api.patch(`/affiliations/${id}/status`, { payment_status, month, year });
       return data.data;
     },
-    onMutate: async ({ id, payment_status }) => {
-      await queryClient.cancelQueries({ queryKey: ['affiliations'] });
-      const previous = queryClient.getQueryData<AffiliationItem[]>(['affiliations']);
+    onMutate: async ({ id, payment_status, month, year }) => {
+      const queryKey = ['affiliations', month, year];
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<AffiliationItem[]>(queryKey);
       const gov_record_at = payment_status === 'Pagado' ? new Date().toISOString() : null;
 
-      queryClient.setQueryData<AffiliationItem[]>(['affiliations'], old =>
-        old?.map(item => item.id === id ? { ...item, payment_status, gov_record_at } : item)
+      queryClient.setQueryData<AffiliationItem[]>(queryKey, old =>
+        old?.map(item => (item.id === id) ? { ...item, payment_status, gov_record_at } : item)
       );
 
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (_error, variables, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(['affiliations'], context.previous);
+        queryClient.setQueryData(['affiliations', variables.month, variables.year], context.previous);
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['affiliations'] });
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['affiliations', variables.month, variables.year] });
     },
   });
 };

@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  BarChart3, TrendingUp, TrendingDown, DollarSign, Users, 
-  Building2, PieChart, Calendar, ArrowUpRight, ArrowDownRight,
+  BarChart3, DollarSign, Users, 
+  Building2, PieChart, ArrowUpRight, ArrowDownRight,
   AlertTriangle, CheckCircle2, Clock, Target
 } from 'lucide-react';
 import { useAffiliations } from '../../affiliations/hooks/useAffiliations';

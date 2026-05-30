@@ -1,11 +1,12 @@
 import { create } from 'zustand';
+import type { AuthUser } from '../types/auth.types';
 
 interface AuthState {
   token: string | null;
-  user: any | null;
+  user: AuthUser | null;
   offices: number[]; // IDs de oficinas permitidas
   activeOfficeId: number | null; // ID de la oficina seleccionada
-  setAuth: (token: string, user: any, offices: number[]) => void;
+  setAuth: (token: string, user: AuthUser, offices: number[]) => void;
   setActiveOffice: (officeId: number) => void;
   logout: () => void;
 }
