@@ -103,6 +103,19 @@ export const useUpdateAffiliation = () => {
   });
 };
 
+export const useDailyAffiliations = (date: string, officeId?: number) => {
+  return useQuery({
+    queryKey: ['affiliations', 'daily', date, officeId],
+    queryFn: async () => {
+      const { data } = await api.get('/affiliations/daily', {
+        params: { date, office_id: officeId, _t: Date.now() },
+      });
+      return data.data.items;
+    },
+    staleTime: 0,
+  });
+};
+
 export const useCloseAffiliation = () => {
   const queryClient = useQueryClient();
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, FileText, Settings, LogOut,
-  Building2, Menu, X, Sun, Moon, Bell,
+  Building2, Menu, X, Sun, Moon, Bell, Calendar,
   TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus,
   BarChart3
 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useThemeStore } from '../store/useThemeStore';
 import { OfficeSelectorModal } from '../features/offices/components/OfficeSelectorModal';
 import { AffiliationsPage } from '../features/affiliations/pages/affiliations';
 import { NewAffiliationPage } from '../features/affiliations/pages/newAffiliation';
+import { DailyReportPage } from '../features/affiliations/pages/DailyReportPage';
 import { ClientsPage } from '../features/clients/pages/ClientsPage';
 import { ReportsPage } from '../features/reports/pages/ReportsPage';
 import { useAffiliations } from '../features/affiliations/hooks/useAffiliations';
@@ -20,6 +21,7 @@ import { useOffices } from '../features/offices/hooks/useOffices';
 const NAV_ITEMS = [
   { id: 'dashboard',    label: 'Dashboard',   icon: LayoutDashboard },
   { id: 'affiliations', label: 'Afiliaciones', icon: Users },
+  { id: 'daily-report', label: 'Reporte Diario', icon: Calendar },
   { id: 'clients',      label: 'Clientes',     icon: UserPlus },
   { id: 'companies',    label: 'Empresas',     icon: Building2 },
   { id: 'reports',      label: 'Reportes',     icon: BarChart3, adminOnly: true },
@@ -567,6 +569,7 @@ export const DashboardPage = ({ tab }: DashboardPageProps = {}) => {
     switch (activeTab) {
       case 'dashboard': return <DashboardHome user={user} activeOfficeId={activeOfficeId} />;
       case 'affiliations': return <AffiliationsPage onNewAffiliation={() => setActiveTab('new-affiliation')} />;
+      case 'daily-report': return <DailyReportPage />;
       case 'new-affiliation': return <NewAffiliationPage onCancel={() => setActiveTab('affiliations')} onSuccess={() => setActiveTab('affiliations')} />;
       case 'clients': return <ClientsPage />;
       case 'companies': return <ComingSoon label="Módulo de Empresas" />;
