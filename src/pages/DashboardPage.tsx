@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, Users, FileText, Settings, LogOut,
+  LayoutDashboard, Users, LogOut,
   Building2, Menu, X, Sun, Moon, Bell, Calendar,
   TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus,
   BarChart3
@@ -16,6 +16,8 @@ import { ClientsPage } from '../features/clients/pages/ClientsPage';
 import { ReportsPage } from '../features/reports/pages/ReportsPage';
 import { useAffiliations } from '../features/affiliations/hooks/useAffiliations';
 import { useOffices } from '../features/offices/hooks/useOffices';
+import { useDashboardStats } from '../hooks/useDashboardStats';
+import { MonthYearSelector } from '../components/MonthYearSelector';
 
 // ─── Nav Items ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -23,10 +25,10 @@ const NAV_ITEMS = [
   { id: 'affiliations', label: 'Afiliaciones', icon: Users },
   { id: 'daily-report', label: 'Reporte Diario', icon: Calendar },
   { id: 'clients',      label: 'Clientes',     icon: UserPlus },
-  { id: 'companies',    label: 'Empresas',     icon: Building2 },
+  // { id: 'companies',    label: 'Empresas',     icon: Building2 },
   { id: 'reports',      label: 'Reportes',     icon: BarChart3, adminOnly: true },
-  { id: 'billing',      label: 'Facturación',  icon: FileText },
-  { id: 'settings',     label: 'Configuración', icon: Settings },
+  // { id: 'billing',      label: 'Facturación',  icon: FileText },
+  // { id: 'settings',     label: 'Configuración', icon: Settings },
 ];
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -47,7 +49,15 @@ const StatCard = ({
         <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-2">
           {label}
         </p>
-        <p className="text-3xl font-extrabold text-slate-900 dark:text-white">{value}</p>
+        <motion.p 
+          key={value}
+          initial={{ scale: 0.8, opacity: 0.5 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 400, damping: 15 }}
+          className="text-3xl font-extrabold text-slate-900 dark:text-white"
+        >
+          {value}
+        </motion.p>
       </div>
       <div className={`p-3 rounded-xl ${bg}`}>
         <Icon size={20} className={iconColor} />
@@ -139,10 +149,10 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
   const { offices } = useOffices();
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | 'all'>('all');
   const [affiliationsView, setAffiliationsView] = useState<'recent' | 'expiring'>('recent');
+  const [targetMonth, setTargetMonth] = useState<number>(new Date().getMonth() + 1);
+  const [targetYear, setTargetYear] = useState<number>(new Date().getFullYear());
   const isAdmin = user?.role === 'admin';
 
-  const currentMonth = new Date().getMonth() + 1;
-  const currentYear = new Date().getFullYear();
   const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
   // Filter affiliations based on selected office
@@ -169,74 +179,36 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
     return affiliations;
   }, [affiliations, selectedOfficeId, activeOfficeId, isAdmin, offices]);
 
+  const { data: dashboardStats } = useDashboardStats(activeOfficeId || undefined, targetMonth, targetYear);
+
   // Stats for current month
   const stats = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const monthAffiliations = filteredAffiliations.filter((a: any) => 
-      a.month === currentMonth && a.year === currentYear
-    );
-    
-    // Vencidas: payment not made and end_date has passed
-    const overdueAffiliations = filteredAffiliations.filter((a: any) => {
-      if (a.payment_status === 'Pagado') return false;
-      if (!a.end_date) return false;
-      return new Date(a.end_date) < today;
-    });
-    
-    // Próximas a vencer: expire in next 5 days
-    const in5Days = new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000);
-    const expiringSoonAffiliations = filteredAffiliations.filter((a: any) => {
-      if (a.status !== 'Activo' || !a.end_date) return false;
-      const endDate = new Date(a.end_date);
-      return endDate >= today && endDate <= in5Days;
-    });
-    
-    return {
-      total:         monthAffiliations.length,
-      paid:          monthAffiliations.filter((a: any) => a.payment_status === 'Pagado').length,
-      pending:       monthAffiliations.filter((a: any) => a.payment_status === 'Pendiente').length,
-      inProcess:     monthAffiliations.filter((a: any) => a.payment_status === 'En Proceso').length,
-      overdue:       overdueAffiliations.length,
-      overdueValue:  overdueAffiliations.reduce((sum: number, a: any) => sum + Number(a.value), 0),
-      expiringSoon:  expiringSoonAffiliations.length,
-      expiringValue: expiringSoonAffiliations.reduce((sum: number, a: any) => sum + Number(a.value), 0),
+    if (!dashboardStats) return {
+      total: 0, paid: 0, pending: 0, inProcess: 0,
+      overdue: 0, overdueValue: 0, expiringSoon: 0, expiringValue: 0
     };
-  }, [filteredAffiliations, currentMonth, currentYear]);
+    return {
+      total: dashboardStats.currentMonth.total,
+      paid: dashboardStats.currentMonth.paid,
+      pending: dashboardStats.currentMonth.pending,
+      inProcess: dashboardStats.currentMonth.inProcess,
+      overdue: dashboardStats.overdue.count,
+      overdueValue: dashboardStats.overdue.value,
+      expiringSoon: dashboardStats.expiringSoon.count,
+      expiringValue: dashboardStats.expiringSoon.value,
+    };
+  }, [dashboardStats]);
 
-  // Trend data (last 3 months: current month going back)
+  // Trend data (last 6 months)
   const trendData = useMemo(() => {
-    if (!filteredAffiliations.length) return [];
+    if (!dashboardStats) return [];
     
-    // Generate last 3 months including current
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
-    
-    const result: { month: string; value: number }[] = [];
-    
-    for (let i = 2; i >= 0; i--) {
-      let month = currentMonth - i;
-      let year = currentYear;
-      if (month <= 0) {
-        month += 12;
-        year -= 1;
-      }
-      
-      const monthAffiliations = filteredAffiliations.filter((a: any) => 
-        a.month === month && a.year === year
-      );
-      const totalValue = monthAffiliations.reduce((sum: number, a: any) => sum + Number(a.value), 0);
-      
-      result.push({
-        month: monthNames[month - 1],
-        value: totalValue
-      });
-    }
-    
-    return result;
-  }, [filteredAffiliations]);
+    // Server returns DESC (May, Apr, Mar...). We reverse to make it chronological.
+    return [...dashboardStats.trendData].reverse().map(t => ({
+      month: monthNames[t.month - 1],
+      value: Number(t.value)
+    }));
+  }, [dashboardStats]);
 
   // Recent: Only Activo, sorted by created_at
   const recentAffiliations = useMemo(() => {
@@ -282,21 +254,28 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
             {headerTitle}
           </h1>
           <p className="text-sm text-slate-500 dark:text-zinc-400">
-            {monthNames[currentMonth - 1]} {currentYear}
+            Resumen estadístico del mes seleccionado
           </p>
         </div>
-        {isAdmin && (
-          <select
-            value={selectedOfficeId}
-            onChange={e => setSelectedOfficeId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            className="px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-zinc-200"
-          >
-            <option value="all">Todas las oficinas</option>
-            {offices.map(o => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
-        )}
+        <div className="flex items-center gap-3">
+          <MonthYearSelector 
+            month={targetMonth} 
+            year={targetYear} 
+            onChange={(m, y) => { setTargetMonth(m); setTargetYear(y); }} 
+          />
+          {isAdmin && (
+            <select
+              value={selectedOfficeId}
+              onChange={e => setSelectedOfficeId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              className="px-3 py-2 text-sm bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 dark:text-zinc-200 h-[38px]"
+            >
+              <option value="all">Todas las oficinas</option>
+              {offices.map(o => (
+                <option key={o.id} value={o.id}>{o.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -462,23 +441,26 @@ const Sidebar = ({
 }) => {
   const { logout } = useAuthStore();
   const isAdmin = user?.role === 'admin';
+  const { offices } = useOffices();
+  
+  const currentOffice = offices?.find(o => o.id === activeOfficeId);
+  const logoUrl = currentOffice?.logo_url || user?.agency_logo_url;
 
   return (
     <aside className="w-64 h-full bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col">
       {/* Logo */}
-      <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100 dark:border-zinc-800">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-lg flex items-center justify-center shadow">
-            <Users size={15} className="text-white" />
-          </div>
-          <div>
-            <span className="font-extrabold text-slate-900 dark:text-white text-sm leading-none block">
-              VibeSocial
-            </span>
-            <span className="text-[10px] text-slate-400 dark:text-zinc-500">
-              Seguridad Social v2
-            </span>
-          </div>
+      <div className=" flex items-center justify-center border-b border-slate-100 dark:border-zinc-800">
+        <div className="flex flex-col mb-1">
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="w-full h-25 object-contain" />
+          ) : (
+            <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-lg flex items-center justify-center shadow flex-shrink-0">
+              <Users size={15} className="text-white" />
+            </div>
+          )}
+          <span className="text-lg font-bold text-slate-900 dark:text-white">
+            {currentOffice ? currentOffice.name : 'Construvida AYJ'}
+          </span>
         </div>
         {isMobile && (
           <button

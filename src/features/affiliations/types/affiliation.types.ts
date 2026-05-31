@@ -44,6 +44,7 @@ export interface AffiliationListResponse {
 export interface AffiliationCreateDTO {
   client_id: number;
   company_id: number;
+  office_id?: number;
   start_date: string;
   end_date?: string;
   value: number;

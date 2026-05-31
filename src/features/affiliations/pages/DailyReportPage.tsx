@@ -52,12 +52,13 @@ export const DailyReportPage = () => {
   // Group by office for summary
   const officeGroups = useMemo(() => {
     if (!affiliations) return [];
-    const groups: Record<string, { office_name: string; items: any[]; count: number }> = {};
+    const groups: Record<string, { office_name: string; items: any[]; count: number; total_value: number }> = {};
     for (const a of affiliations) {
       const key = a.office_name || 'Sin oficina';
-      if (!groups[key]) groups[key] = { office_name: key, items: [], count: 0 };
+      if (!groups[key]) groups[key] = { office_name: key, items: [], count: 0, total_value: 0 };
       groups[key].items.push(a);
       groups[key].count++;
+      groups[key].total_value += Number(a.value || 0);
     }
     return Object.values(groups).sort((a, b) => a.office_name.localeCompare(b.office_name));
   }, [affiliations]);
@@ -115,8 +116,9 @@ export const DailyReportPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ─── Header Controls ─── */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+      {/* ─── Header Controls & Summary ─── */}
+      <div className="flex flex-col xl:flex-row gap-4 items-start justify-between">
+        {/* Left Side: Controls */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
             <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500" />
@@ -150,42 +152,52 @@ export const DailyReportPage = () => {
           >
             Hoy
           </button>
+
+          {/* Moved: Total Items & Refresh Button */}
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-zinc-700 h-8">
+            <p className="text-xs font-medium text-slate-500 dark:text-zinc-400">
+              {isLoading ? '...' : `${filtered.length} afiliación(es)`}
+            </p>
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+              title="Actualizar"
+            >
+              <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <p className="text-xs text-slate-400 dark:text-zinc-500">
-            {isLoading ? 'Cargando...' : `${filtered.length} afiliación(es)`}
-          </p>
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="p-2 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-500 hover:text-indigo-500 transition-colors"
-            title="Actualizar"
-          >
-            <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </div>
-
-      {/* ─── Office Summary Cards ─── */}
-      {!isLoading && officeGroups.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
-          {officeGroups.map((g, i) => (
+        {/* Right Side: Office Summary Cards */}
+        <div className="flex flex-wrap gap-3 xl:justify-end w-full xl:w-auto">
+          {!isLoading && officeGroups.length > 0 && officeGroups.map((g, i) => (
             <motion.div
               key={g.office_name}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-100 dark:border-zinc-800 p-3 shadow-sm"
+              className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-100 dark:border-zinc-800 p-4 shadow-sm flex flex-col justify-between min-w-[240px] xl:max-w-[280px]"
             >
-              <p className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider truncate">
+              <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider truncate mb-2">
                 {g.office_name}
               </p>
-              <p className="text-xl font-extrabold text-slate-800 dark:text-zinc-100 mt-1">{g.count}</p>
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-2xl font-extrabold text-slate-800 dark:text-zinc-100 leading-none">{g.count}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">afiliaciones</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 leading-none">
+                    ${g.total_value.toLocaleString('es-CO')}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-1">recaudo total</p>
+                </div>
+              </div>
             </motion.div>
           ))}
         </div>
-      )}
+      </div>
 
       {/* ─── Search + Status Filters ─── */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">

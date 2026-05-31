@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { useAffiliations } from '../../affiliations/hooks/useAffiliations';
 import { useOffices } from '../../offices/hooks/useOffices';
+import { useDashboardStats } from '../../../hooks/useDashboardStats';
+import { MonthYearSelector } from '../../../components/MonthYearSelector';
 
 const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -31,7 +33,15 @@ const KpiCard = ({ label, value, subvalue, trend, icon: Icon, bg, iconColor, del
     <div className="flex items-start justify-between">
       <div>
         <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-1">{label}</p>
-        <p className="text-2xl font-extrabold text-slate-900 dark:text-white">{value}</p>
+        <motion.p 
+          key={value}
+          initial={{ scale: 0.8, opacity: 0.5 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 400, damping: 15 }}
+          className="text-2xl font-extrabold text-slate-900 dark:text-white"
+        >
+          {value}
+        </motion.p>
         {subvalue && <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1">{subvalue}</p>}
       </div>
       <div className={`p-3 rounded-xl ${bg}`}>
@@ -146,51 +156,44 @@ const SimplePieChart = ({ data }: PieChartProps) => {
 };
 
 // ─── Resumen Ejecutivo ────────────────────────────────────────────────────────
-const ResumenEjecutivo = () => {
-  const { data: affiliations, isLoading } = useAffiliations();
+const ResumenEjecutivo = ({ 
+  targetMonth, targetYear, setTargetMonth, setTargetYear 
+}: { 
+  targetMonth: number; targetYear: number; 
+  setTargetMonth: (m: number) => void; setTargetYear: (y: number) => void;
+}) => {
+  const { data: dashboardStats, isLoading } = useDashboardStats(undefined, targetMonth, targetYear);
   const { offices } = useOffices();
   
   const stats = useMemo(() => {
-    if (!affiliations) return null;
+    if (!dashboardStats) return null;
     
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
+    const currentMonth = targetMonth;
+    const currentYear = targetYear;
     const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
     const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-    
-    const currentMonthData = affiliations.filter((a: any) => a.month === currentMonth && a.year === currentYear);
-    const prevMonthData = affiliations.filter((a: any) => a.month === prevMonth && a.year === prevYear);
-    
-    const currentRevenue = currentMonthData.reduce((sum: number, a: any) => sum + Number(a.value), 0);
-    const prevRevenue = prevMonthData.reduce((sum: number, a: any) => sum + Number(a.value), 0);
+
+    // Find current month and prev month revenue from dashboardStats
+    const currentTrend = dashboardStats.trendData.find((t: any) => t.month === currentMonth && t.year === currentYear);
+    const prevTrend = dashboardStats.trendData.find((t: any) => t.month === prevMonth && t.year === prevYear);
+
+    const currentRevenue = currentTrend ? Number(currentTrend.value) : 0;
+    const prevRevenue = prevTrend ? Number(prevTrend.value) : 0;
     const revenueGrowth = prevRevenue > 0 ? ((currentRevenue - prevRevenue) / prevRevenue) * 100 : 0;
     
-    const currentPaid = currentMonthData.filter((a: any) => a.payment_status === 'Pagado');
-    const currentPending = currentMonthData.filter((a: any) => a.payment_status === 'Pendiente');
-    const currentInProcess = currentMonthData.filter((a: any) => a.payment_status === 'En Proceso');
-    
-    const today_ = new Date();
-    today_.setHours(0, 0, 0, 0);
-    const overdue = affiliations.filter((a: any) => {
-      if (a.payment_status === 'Pagado') return false;
-      if (!a.end_date) return false;
-      return new Date(a.end_date) < today_;
-    });
-    
     return {
-      totalAffiliations: affiliations.length,
-      currentMonthAffiliations: currentMonthData.length,
+      totalAffiliations: dashboardStats.totalAffiliations,
+      currentMonthAffiliations: dashboardStats.currentMonth.total,
       currentRevenue,
       revenueGrowth,
-      paidCount: currentPaid.length,
-      pendingCount: currentPending.length,
-      inProcessCount: currentInProcess.length,
-      overdueCount: overdue.length,
-      overdueValue: overdue.reduce((sum: number, a: any) => sum + Number(a.value), 0),
+      paidCount: dashboardStats.currentMonth.paid,
+      pendingCount: dashboardStats.currentMonth.pending,
+      inProcessCount: dashboardStats.currentMonth.inProcess,
+      overdueCount: dashboardStats.overdue.count,
+      overdueValue: dashboardStats.overdue.value,
       officesCount: offices.length,
     };
-  }, [affiliations, offices]);
+  }, [dashboardStats, targetMonth, targetYear, offices]);
   
   if (isLoading || !stats) {
     return <div className="animate-pulse space-y-4"><div className="h-64 bg-slate-100 dark:bg-zinc-800 rounded-2xl" /></div>;
@@ -198,14 +201,21 @@ const ResumenEjecutivo = () => {
   
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Resumen Ejecutivo</h2>
-        <p className="text-sm text-slate-500 dark:text-zinc-400">Indicadores clave del negocio</p>
+      <div className="flex flex-col sm:flex-row gap-10 items-start sm:items-center">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Resumen Ejecutivo</h2>
+          <p className="text-sm text-slate-500 dark:text-zinc-400">Indicadores clave del negocio</p>
+        </div>
+        <MonthYearSelector 
+          month={targetMonth} 
+          year={targetYear} 
+          onChange={(m, y) => { setTargetMonth(m); setTargetYear(y); }} 
+        />
       </div>
       
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard label="Ingresos del Mes" value={`$${(stats.currentRevenue / 1000000).toFixed(1)}M`} 
-          subvalue={monthNames[new Date().getMonth()]} trend={Math.round(stats.revenueGrowth)}
+          subvalue={monthNames[targetMonth - 1]} trend={Math.round(stats.revenueGrowth)}
           icon={DollarSign} bg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600" delay={0.05} />
         <KpiCard label="Total Afiliados" value={stats.totalAffiliations} 
           subvalue={`${stats.currentMonthAffiliations} este mes`}
@@ -220,21 +230,21 @@ const ResumenEjecutivo = () => {
       </div>
       
       <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-slate-100 dark:border-zinc-800 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300 mb-4">Estado de Cartera - {monthNames[new Date().getMonth()]} {new Date().getFullYear()}</h3>
+        <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300 mb-4">Estado de Cartera - {monthNames[targetMonth - 1]} {targetYear}</h3>
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl">
             <CheckCircle2 size={24} className="text-emerald-600 mx-auto mb-2" />
-            <p className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400">{stats.paidCount}</p>
+            <motion.p key={stats.paidCount} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring" }} className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400">{stats.paidCount}</motion.p>
             <p className="text-xs text-emerald-600 dark:text-emerald-500">Pagadas</p>
           </div>
           <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl">
             <Clock size={24} className="text-blue-600 mx-auto mb-2" />
-            <p className="text-2xl font-extrabold text-blue-700 dark:text-blue-400">{stats.inProcessCount}</p>
+            <motion.p key={stats.inProcessCount} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring" }} className="text-2xl font-extrabold text-blue-700 dark:text-blue-400">{stats.inProcessCount}</motion.p>
             <p className="text-xs text-blue-600 dark:text-blue-500">En Proceso</p>
           </div>
           <div className="text-center p-4 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
             <AlertTriangle size={24} className="text-amber-600 mx-auto mb-2" />
-            <p className="text-2xl font-extrabold text-amber-700 dark:text-amber-400">{stats.pendingCount}</p>
+            <motion.p key={stats.pendingCount} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring" }} className="text-2xl font-extrabold text-amber-700 dark:text-amber-400">{stats.pendingCount}</motion.p>
             <p className="text-xs text-amber-600 dark:text-amber-500">Pendientes</p>
           </div>
         </div>
@@ -359,40 +369,28 @@ const IngresosPorOficina = () => {
 };
 
 // ─── Comparativa Mensual ──────────────────────────────────────────────────────
-const ComparativaMensual = () => {
-  const { data: affiliations, isLoading } = useAffiliations();
+const ComparativaMensual = ({ 
+  targetMonth, targetYear, setTargetMonth, setTargetYear 
+}: { 
+  targetMonth: number; targetYear: number; 
+  setTargetMonth: (m: number) => void; setTargetYear: (y: number) => void;
+}) => {
+  const { data: dashboardStats, isLoading } = useDashboardStats(undefined, targetMonth, targetYear);
   
   const monthlyData = useMemo(() => {
-    if (!affiliations) return [];
+    if (!dashboardStats) return [];
     
-    const result: { month: string; monthNum: number; year: number; revenue: number; count: number; paid: number; pending: number }[] = [];
-    
-    for (let i = 5; i >= 0; i--) {
-      let month = new Date().getMonth() + 1 - i;
-      let year = new Date().getFullYear();
-      if (month <= 0) {
-        month += 12;
-        year -= 1;
-      }
-      
-      const monthAffiliations = affiliations.filter((a: any) => a.month === month && a.year === year);
-      const revenue = monthAffiliations.reduce((sum: number, a: any) => sum + Number(a.value), 0);
-      const paid = monthAffiliations.filter((a: any) => a.payment_status === 'Pagado').length;
-      const pending = monthAffiliations.filter((a: any) => a.payment_status === 'Pendiente').length;
-      
-      result.push({
-        month: monthNames[month - 1],
-        monthNum: month,
-        year,
-        revenue,
-        count: monthAffiliations.length,
-        paid,
-        pending,
-      });
-    }
-    
-    return result;
-  }, [affiliations]);
+    // Server returns DESC (May, Apr, Mar). We reverse for chronological order
+    return [...dashboardStats.trendData].reverse().map(t => ({
+      month: monthNames[t.month - 1],
+      monthNum: t.month,
+      year: t.year,
+      revenue: Number(t.value),
+      count: Number(t.count),
+      paid: Number(t.paid),
+      pending: Number(t.pending),
+    }));
+  }, [dashboardStats]);
   
   if (isLoading) {
     return <div className="animate-pulse space-y-4"><div className="h-64 bg-slate-100 dark:bg-zinc-800 rounded-2xl" /></div>;
@@ -400,14 +398,21 @@ const ComparativaMensual = () => {
   
   const currentMonth = monthlyData[monthlyData.length - 1];
   const prevMonth = monthlyData[monthlyData.length - 2];
-  const revenueChange = prevMonth.revenue > 0 ? ((currentMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100 : 0;
-  const countChange = prevMonth.count > 0 ? ((currentMonth.count - prevMonth.count) / prevMonth.count) * 100 : 0;
+  const revenueChange = prevMonth && prevMonth.revenue > 0 ? ((currentMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100 : 0;
+  const countChange = prevMonth && prevMonth.count > 0 ? ((currentMonth.count - prevMonth.count) / prevMonth.count) * 100 : 0;
   
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Comparativa Mensual</h2>
-        <p className="text-sm text-slate-500 dark:text-zinc-400">Evolución de los últimos 6 meses</p>
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Comparativa Mensual</h2>
+          <p className="text-sm text-slate-500 dark:text-zinc-400">Evolución de ingresos y cobros (últimos 6 meses)</p>
+        </div>
+        <MonthYearSelector 
+          month={targetMonth} 
+          year={targetYear} 
+          onChange={(m, y) => { setTargetMonth(m); setTargetYear(y); }} 
+        />
       </div>
       
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -564,6 +569,8 @@ const DistribucionServicio = () => {
 // ─── Reports Page ─────────────────────────────────────────────────────────────
 export const ReportsPage = () => {
   const [activeReport, setActiveReport] = useState('resumen');
+  const [targetMonth, setTargetMonth] = useState<number>(new Date().getMonth() + 1);
+  const [targetYear, setTargetYear] = useState<number>(new Date().getFullYear());
   
   const reports = [
     { id: 'resumen', label: 'Resumen Ejecutivo', icon: Target },
@@ -574,17 +581,17 @@ export const ReportsPage = () => {
   
   const renderReport = () => {
     switch (activeReport) {
-      case 'resumen': return <ResumenEjecutivo />;
+      case 'resumen': return <ResumenEjecutivo targetMonth={targetMonth} targetYear={targetYear} setTargetMonth={setTargetMonth} setTargetYear={setTargetYear} />;
       case 'oficinas': return <IngresosPorOficina />;
-      case 'comparativa': return <ComparativaMensual />;
+      case 'comparativa': return <ComparativaMensual targetMonth={targetMonth} targetYear={targetYear} setTargetMonth={setTargetMonth} setTargetYear={setTargetYear} />;
       case 'servicios': return <DistribucionServicio />;
-      default: return <ResumenEjecutivo />;
+      default: return <ResumenEjecutivo targetMonth={targetMonth} targetYear={targetYear} setTargetMonth={setTargetMonth} setTargetYear={setTargetYear} />;
     }
   };
   
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Reportes</h1>
           <p className="text-sm text-slate-500 dark:text-zinc-400">Análisis y métricas del negocio</p>

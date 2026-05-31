@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, AlertCircle, UserPlus } from 'lucide-react';
 import { useClientFormData, useCreateClient } from '../hooks/useClients';
 import { useAuthStore } from '../../../store/useAuthStore';
+import { useOffices } from '../../offices/hooks/useOffices';
 
 interface Props {
   isOpen: boolean;
@@ -12,10 +13,13 @@ interface Props {
 export const CreateClientModal = ({ isOpen, onClose }: Props) => {
   const { data: formData, isLoading } = useClientFormData();
   const { mutateAsync: create, isPending } = useCreateClient();
-  const { activeOfficeId, offices } = useAuthStore();
+  const { activeOfficeId, user } = useAuthStore();
+  const { offices } = useOffices();
+  const isAdmin = user?.role === 'admin';
 
   const [error, setError] = useState('');
 
+  const [selectedOfficeId, setSelectedOfficeId] = useState('');
   const [documentTypeId, setDocumentTypeId] = useState('');
   const [firstName, setFirstName] = useState('');
   const [secondName, setSecondName] = useState('');
@@ -37,6 +41,7 @@ export const CreateClientModal = ({ isOpen, onClose }: Props) => {
       setEmail('');
       setPhone1('');
       setPhone2('');
+      setSelectedOfficeId('');
       setError('');
     }
   }, [isOpen]);
@@ -49,7 +54,15 @@ export const CreateClientModal = ({ isOpen, onClose }: Props) => {
     if (!firstLastname.trim()) return setError('Ingresa el primer apellido.');
     if (!identification) return setError('Ingresa el número de identificación.');
     
-    const currentOfficeId = activeOfficeId || (offices?.length > 0 ? offices[0] : null);
+    // Determine the office_id to assign
+    let currentOfficeId = activeOfficeId;
+    if (isAdmin && !activeOfficeId) {
+      if (!selectedOfficeId) return setError('Selecciona la sede a la que pertenece el cliente.');
+      currentOfficeId = Number(selectedOfficeId);
+    } else if (!currentOfficeId) {
+      currentOfficeId = offices?.length > 0 ? offices[0].id : null;
+    }
+
     if (!currentOfficeId) return setError('No hay una oficina activa para crear el cliente.');
 
     try {
@@ -108,6 +121,24 @@ export const CreateClientModal = ({ isOpen, onClose }: Props) => {
                 <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/30 rounded-xl text-sm">
                   <AlertCircle size={18} />
                   {error}
+                </div>
+              )}
+
+              {isAdmin && !activeOfficeId && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 rounded-xl mb-4">
+                  <label className="block text-xs font-bold text-amber-800 dark:text-amber-400 mb-2">
+                    Sede de Afiliación (Obligatorio para Administradores)
+                  </label>
+                  <select
+                    value={selectedOfficeId}
+                    onChange={e => setSelectedOfficeId(e.target.value)}
+                    className="w-full p-3 bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700/50 rounded-xl outline-none focus:border-amber-500 text-slate-800 dark:text-zinc-200"
+                  >
+                    <option value="">Selecciona la sede del cliente...</option>
+                    {offices?.map((office: any) => (
+                      <option key={office.id} value={office.id}>{office.name}</option>
+                    ))}
+                  </select>
                 </div>
               )}
 

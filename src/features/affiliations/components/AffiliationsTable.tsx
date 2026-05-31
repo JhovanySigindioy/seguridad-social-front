@@ -80,10 +80,16 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
   const canChangeStatus = allowedStatusOptions.length > 0;
   const isOfficeManager = user?.role === 'office_manager';
 
+  const [activeTab, setActiveTab] = useState<'activas' | 'inactivas'>('activas');
+
   const filtered = useMemo(() => {
     if (!affiliations) return [];
     return affiliations
       .filter(a => {
+        const isInactive = a.status === 'Inactivo';
+        if (activeTab === 'activas' && isInactive) return false;
+        if (activeTab === 'inactivas' && !isInactive) return false;
+
         const matchSearch =
           a.client_name.toLowerCase().includes(search.toLowerCase()) ||
           a.client_identification.includes(search) ||
@@ -97,7 +103,7 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
         if (a[sortField] > b[sortField]) return 1 * dir;
         return 0;
       });
-  }, [affiliations, search, statusFilter, sortField, sortDir]);
+  }, [affiliations, search, statusFilter, sortField, sortDir, activeTab]);
 
   const handleSort = (field: string) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -196,6 +202,30 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Tabs */}
+      <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 rounded-xl p-1 border border-slate-100 dark:border-zinc-800 self-start">
+        <button
+          onClick={() => { setActiveTab('activas'); setCurrentPage(1); }}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+            activeTab === 'activas' 
+              ? 'bg-indigo-600 text-white shadow-md' 
+              : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
+          }`}
+        >
+          Activas & Vencidas
+        </button>
+        <button
+          onClick={() => { setActiveTab('inactivas'); setCurrentPage(1); }}
+          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+            activeTab === 'inactivas' 
+              ? 'bg-slate-700 text-white shadow-md dark:bg-zinc-700' 
+              : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
+          }`}
+        >
+          Inactivas
+        </button>
+      </div>
+
       {/* Toolbar: Search + Filters + Nueva Afiliación button */}
       <div className="flex flex-col sm:flex-row gap-3 items-center sm:items-center">
         <div className="flex flex-1 items-center justify-between gap-3 flex-wrap">

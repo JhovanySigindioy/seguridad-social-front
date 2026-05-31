@@ -3,6 +3,8 @@ import { Save, Heart, Shield, Landmark, Building, CheckCircle2, User } from 'luc
 import { useAffiliationFormData, useCreateAffiliation, useLatestAffiliationByClient } from '../hooks/useAffiliations';
 import { useToast } from '../../../components/Toast';
 import type { AffiliationCreateDTO } from '../types/affiliation.types';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { useOffices } from '../../offices/hooks/useOffices';
 
 const SERVICE_CONFIG = {
   eps: { label: 'Salud EPS', shortLabel: 'EPS', color: 'emerald', icon: Heart },
@@ -35,6 +37,11 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [clientId, setClientId] = useState('');
   const [companyId, setCompanyId] = useState('');
+  const [selectedOfficeId, setSelectedOfficeId] = useState('');
+
+  const { activeOfficeId, user } = useAuthStore();
+  const { offices } = useOffices();
+  const isAdmin = user?.role === 'admin';
 
   const [services, setServices] = useState<Record<keyof typeof SERVICE_CONFIG, ServiceState>>({
     eps: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
@@ -49,7 +56,7 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     if (latestAffiliation) {
       setCompanyId(String(latestAffiliation.company_id));
       setValue(String(latestAffiliation.value));
-      
+
       setServices(prev => ({
         eps: { ...prev.eps, active: !!latestAffiliation.eps_id, entityId: latestAffiliation.eps_id ? String(latestAffiliation.eps_id) : '' },
         pension: { ...prev.pension, active: !!latestAffiliation.pension_id, entityId: latestAffiliation.pension_id ? String(latestAffiliation.pension_id) : '' },
@@ -85,6 +92,7 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
       ccf: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
     });
     setMethod('');
+    setSelectedOfficeId('');
   }, []);
 
   const handleServiceChange = (service: keyof typeof SERVICE_CONFIG, field: keyof ServiceState, val: any) => {
@@ -99,6 +107,14 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     if (services.ccf.active && !services.ccf.entityId) return showToast('Selecciona la Caja de Compensación.');
     if (services.pension.active && !services.pension.entityId) return showToast('Selecciona el Fondo de Pensión.');
     if (!value || isNaN(Number(value))) return showToast('Ingresa un valor de cobro válido.');
+
+    let currentOfficeId = activeOfficeId;
+    if (isAdmin && !activeOfficeId) {
+      if (!selectedOfficeId) return showToast('Selecciona la sede a la que se asignará la afiliación.');
+      currentOfficeId = Number(selectedOfficeId);
+    } else if (!currentOfficeId) {
+      currentOfficeId = offices?.length > 0 ? offices[0].id : null;
+    }
 
     // Validar que todos los servicios activos tengan fecha de fin
     const activeEntries = Object.entries(services).filter(([, s]) => s.active);
@@ -121,6 +137,7 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
       pension_id: services.pension.active ? Number(services.pension.entityId) : null,
       risk_level: services.arl.active ? services.arl.riskLevel : null,
       is_auto_renewed: false, // Ya no es automático por defecto si obligamos a poner fin
+      office_id: currentOfficeId || undefined,
     };
 
     try {
@@ -144,6 +161,24 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
             </div>
           ) : (
             <div className="space-y-4">
+              {isAdmin && !activeOfficeId && (
+                <>
+                  <label className="block text-xs font-bold text-amber-800 dark:text-amber-400 mb-2">
+                    En que oficina desea registrar la afiliación?
+                  </label>
+                  <select
+                    value={selectedOfficeId}
+                    onChange={e => setSelectedOfficeId(e.target.value)}
+                    className="w-full p-3 bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-700/50 rounded-xl outline-none focus:border-amber-500 text-slate-800 dark:text-zinc-200"
+                  >
+                    <option value="">Selecciona la sede a la que se asignará la afiliación...</option>
+                    {offices?.map((office: any) => (
+                      <option key={office.id} value={office.id}>{office.name}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+
               {/* Row 1: Worker + Company */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
