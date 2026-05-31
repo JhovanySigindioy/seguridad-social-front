@@ -127,8 +127,8 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
       { 
         id: item.id, 
         payment_status: paymentStatus, 
-        month: item.month || selectedMonth, 
-        year: item.year || selectedYear 
+        month: item.month || filterMonth, 
+        year: item.year || filterYear 
       },
       {
         onError: (error: any) => {
