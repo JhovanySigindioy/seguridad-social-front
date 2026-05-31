@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogIn, Mail, Lock, Eye, EyeOff, Loader2, Sun, Moon, ShieldCheck } from 'lucide-react';
+import { LogIn, Mail, Lock, Eye, EyeOff, Loader2, Sun, Moon } from 'lucide-react';
 import api from '../services/api/axios-instance';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
@@ -50,48 +50,27 @@ export const LoginPage = () => {
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-slate-50 dark:bg-zinc-950 transition-colors duration-300">
       
-      {/* Columna Izquierda: Branding (Solo escritorio) */}
-      <div className="hidden md:flex md:w-1/2 lg:w-3/5 bg-indigo-600 dark:bg-indigo-900 relative overflow-hidden items-center justify-center p-12">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-white blur-3xl" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-400 blur-3xl" />
-        </div>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="relative z-10 text-white max-w-lg"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20">
-              <ShieldCheck className="h-10 w-10 text-white" />
-            </div>
-            <h1 className="text-4xl font-extrabold tracking-tight">VibeSocial</h1>
-          </div>
-          <h2 className="text-5xl font-bold leading-tight mb-6">
-            La plataforma inteligente de <span className="text-indigo-200">Seguridad Social</span>
-          </h2>
-          <p className="text-indigo-100 text-xl leading-relaxed opacity-90">
-            Gestiona aportes, afiliaciones y reportes con una arquitectura indestructible y una experiencia fluida.
-          </p>
-        </motion.div>
-
-        {/* Decoración Abstracta Extra */}
-        <div className="absolute bottom-12 left-12 flex gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-1.5 w-12 rounded-full bg-white/20" />
-          ))}
-        </div>
+      {/* Imagen de Presentación (Arriba en móvil, Izquierda en escritorio) */}
+      <div 
+        className="flex w-full h-[35vh] md:h-auto md:w-1/2 lg:w-3/5 bg-[#013575] relative overflow-hidden items-center justify-center shrink-0"
+        style={{
+          backgroundImage: "url('/img/LoginPresntacion.webp')",
+          backgroundSize: "cover",
+          backgroundPosition: "left center",
+          backgroundRepeat: "no-repeat"
+        }}
+      >
+        {/* Decoración extra opcional sobre la imagen */}
+        <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/50 md:from-transparent to-[#012555]/10 pointer-events-none" />
       </div>
 
-      {/* Columna Derecha: Formulario */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12">
+      {/* Formulario (Superpuesto abajo en móvil, Derecha en escritorio) */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 relative bg-white dark:bg-zinc-950 rounded-t-[40px] md:rounded-none -mt-10 md:mt-0 z-10 shadow-[0_-20px_40px_rgba(0,0,0,0.1)] md:shadow-none">
         
         {/* Toggle Tema */}
         <button 
           onClick={toggleTheme}
-          className="absolute top-6 right-6 p-3 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:shadow-md transition-all"
+          className="absolute top-6 right-6 p-3 rounded-full bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:shadow-md transition-all"
         >
           {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
         </button>
