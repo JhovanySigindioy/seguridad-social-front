@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, Eye, UserPlus } from 'lucide-react';
+import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, Eye, UserPlus, UserMinus } from 'lucide-react';
 import { useAffiliations, useUpdateAffiliationStatus } from '../hooks/useAffiliations';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { PAYMENT_STATUSES, type AffiliationItem, type PaymentStatus } from '../types/affiliation.types';
 import { StatusBadge } from './StatusBadge';
 import { AffiliationDetailsModal } from './AffiliationDetailsModal';
 import { EditAffiliationModal } from './EditAffiliationModal';
+import { CloseAffiliationModal } from './CloseAffiliationModal';
 
 const OFFICE_MANAGER_PAYMENT_STATUSES: PaymentStatus[] = ['Pendiente', 'En Proceso'];
 const STATUS_STYLES: Record<PaymentStatus, {
@@ -72,6 +73,7 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [closingItem, setClosingItem] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -80,14 +82,24 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
   const canChangeStatus = allowedStatusOptions.length > 0;
   const isOfficeManager = user?.role === 'office_manager';
 
-  const [activeTab, setActiveTab] = useState<'activas' | 'inactivas'>('activas');
+  const [activeTab, setActiveTab] = useState<'activas' | 'vencidas' | 'inactivas'>('activas');
 
   const filtered = useMemo(() => {
     if (!affiliations) return [];
     return affiliations
       .filter(a => {
         const isInactive = a.status === 'Inactivo';
-        if (activeTab === 'activas' && isInactive) return false;
+        
+        let isExpired = false;
+        if (!isInactive && a.end_date) {
+          const endDate = new Date(a.end_date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          if (endDate < today) isExpired = true;
+        }
+
+        if (activeTab === 'activas' && (isInactive || isExpired)) return false;
+        if (activeTab === 'vencidas' && (!isExpired || isInactive)) return false;
         if (activeTab === 'inactivas' && !isInactive) return false;
 
         const matchSearch =
@@ -212,17 +224,17 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
               : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
           }`}
         >
-          Activas & Vencidas
+          Activas
         </button>
         <button
-          onClick={() => { setActiveTab('inactivas'); setCurrentPage(1); }}
+          onClick={() => { setActiveTab('vencidas'); setCurrentPage(1); }}
           className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
-            activeTab === 'inactivas' 
-              ? 'bg-slate-700 text-white shadow-md dark:bg-zinc-700' 
+            activeTab === 'vencidas' 
+              ? 'bg-red-500 text-white shadow-md' 
               : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
           }`}
         >
-          Inactivas
+          Vencidas
         </button>
       </div>
 
@@ -322,20 +334,22 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
               {[
                 { label: 'Cliente', field: 'client_name' },
                 { label: 'Empresa', field: 'company_name' },
-                { label: 'Oficina', field: 'office_name' },
-                { label: 'Fechas', field: 'gov_record_at' },
+                { label: 'Oficina', field: 'office_name', hideForManager: true },
+                { label: 'Transacción', field: 'gov_record_at' },
                 { label: 'Servicios', field: 'eps_name' },
                 { label: 'Valor', field: 'value' },
                 { label: 'Estado', field: 'status' },
                 { label: 'Pago', field: 'payment_status' },
-                { label: 'Acciones', field: 'actions' },
-              ].map(col => (
+                { label: 'Acciones', field: '' },
+              ]
+                .filter(col => !(isOfficeManager && col.hideForManager))
+                .map(col => (
                 <th
-                  key={col.field}
-                  onClick={() => handleSort(col.field)}
+                  key={col.field || col.label}
+                  onClick={() => col.field && handleSort(col.field)}
                   className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400 cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap"
                 >
-                  <span className="flex items-center">{col.label}<SortIcon field={col.field} /></span>
+                  <span className="flex items-center">{col.label}{col.field && <SortIcon field={col.field} />}</span>
                 </th>
               ))}
             </tr>
@@ -375,11 +389,13 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-slate-600 dark:text-zinc-400 max-w-[180px] truncate">{item.company_name}</td>
-                    <td className="px-4 py-3.5">
-                      <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded text-[10px] font-semibold">
-                        {item.office_name || 'N/A'}
-                      </span>
-                    </td>
+                    {!isOfficeManager && (
+                      <td className="px-4 py-3.5">
+                        <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded text-[10px] font-semibold">
+                          {item.office_name || 'N/A'}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-4 py-3.5">
                       <div className="text-[11px] leading-tight text-slate-500 dark:text-zinc-400">
                         <p><span className="font-bold text-slate-600 dark:text-zinc-300">Recibido:</span> {formatDate(item.created_at)}</p>
@@ -403,14 +419,20 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      {(() => {
-                        const affStatus = getAffiliationStatus(item);
-                        return (
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${affStatus.className}`}>
-                            {affStatus.label}
-                          </span>
-                        );
-                      })()}
+                      <div className="flex flex-col gap-1 items-start">
+                        {(() => {
+                          const affStatus = getAffiliationStatus(item);
+                          return (
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${affStatus.className}`}>
+                              {affStatus.label}
+                            </span>
+                          );
+                        })()}
+                        <div className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium leading-tight mt-0.5">
+                           <p>Ini: {formatDate(item.start_date)}</p>
+                           <p>Fin: {item.end_date ? formatDate(item.end_date) : 'N/A'}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
                       {(() => {
@@ -463,6 +485,14 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
                         >
                           <Pencil size={15} />
                         </button>
+                        <button
+                          onClick={() => item.status !== 'Inactivo' && setClosingItem(item)}
+                          disabled={item.status === 'Inactivo'}
+                          className={`p-1.5 rounded-lg transition-colors ${item.status === 'Inactivo' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30'}`}
+                          title={item.status === 'Inactivo' ? 'Ya está inactiva' : 'Finalizar cobertura'}
+                        >
+                          <UserMinus size={15} />
+                        </button>
                       </div>
                     </td>
                   </motion.tr>
@@ -511,6 +541,12 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
         isOpen={!!editingItem}
         affiliation={editingItem}
         onClose={() => setEditingItem(null)}
+      />
+
+      <CloseAffiliationModal
+        isOpen={!!closingItem}
+        affiliation={closingItem}
+        onClose={() => setClosingItem(null)}
       />
     </div>
   );

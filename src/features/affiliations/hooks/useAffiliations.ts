@@ -120,12 +120,14 @@ export const useCloseAffiliation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, withdrawal_reason, withdrawal_observations }: {
+    mutationFn: async ({ id, end_date, withdrawal_reason, withdrawal_observations }: {
       id: number;
+      end_date: string;
       withdrawal_reason: 'Voluntario' | 'FinContrato' | 'Licencia' | 'Otro';
       withdrawal_observations?: string;
     }) => {
       const { data } = await api.patch(`/affiliations/${id}/close`, {
+        end_date,
         withdrawal_reason,
         withdrawal_observations,
       });

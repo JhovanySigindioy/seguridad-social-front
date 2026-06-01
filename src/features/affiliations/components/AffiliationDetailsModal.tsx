@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Building2, UserCircle, Briefcase, FileText, DollarSign, Ban } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
-import { useCloseAffiliation } from '../hooks/useAffiliations';
 import { useToast } from '../../../components/Toast';
 
 const formatDate = (value?: string | null) => {
@@ -28,27 +27,6 @@ interface Props {
 }
 
 export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
-  const { mutateAsync: closeAffiliation, isPending: isClosing } = useCloseAffiliation();
-  const { showToast } = useToast();
-  const [showCloseForm, setShowCloseForm] = useState(false);
-  const [closeReason, setCloseReason] = useState<'Voluntario' | 'FinContrato' | 'Licencia' | 'Otro'>('Voluntario');
-  const [closeObservations, setCloseObservations] = useState('');
-
-  const handleClose = async () => {
-    try {
-      await closeAffiliation({
-        id: data.id,
-        withdrawal_reason: closeReason,
-        withdrawal_observations: closeObservations || undefined,
-      });
-      showToast('Afiliación cerrada exitosamente', 'success');
-      setShowCloseForm(false);
-      onClose();
-    } catch (err: any) {
-      showToast(err.response?.data?.error || 'Error al cerrar la afiliación');
-    }
-  };
-
   if (!data) return null;
 
   return (
@@ -94,15 +72,6 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {data.status === 'Activo' && !showCloseForm && (
-                  <button
-                    onClick={() => setShowCloseForm(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-                  >
-                    <Ban size={14} />
-                    Cerrar Afiliación
-                  </button>
-                )}
                 <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-800 transition-colors">
                   <X size={20} />
                 </button>
@@ -111,67 +80,6 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
 
             {/* Body (Scrollable) */}
             <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar space-y-8 min-h-0">
-
-              {/* Close Form Panel */}
-              <AnimatePresence>
-                {showCloseForm && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-2xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-bold text-red-600 dark:text-red-400">Cerrar Afiliación</h4>
-                        <button
-                          onClick={() => setShowCloseForm(false)}
-                          className="text-xs text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-slate-200"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                      <p className="text-xs text-slate-500 dark:text-zinc-400">
-                        La afiliación se cerrará con fecha de hoy. Esto permitirá crear una nueva afiliación para este trabajador.
-                      </p>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1">Motivo de Retiro</label>
-                        <select
-                          value={closeReason}
-                          onChange={e => setCloseReason(e.target.value as any)}
-                          className="w-full p-2 text-sm bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-900/30 rounded-lg focus:border-red-500 outline-none text-slate-800 dark:text-zinc-200"
-                        >
-                          <option value="Voluntario">Voluntario</option>
-                          <option value="FinContrato">Fin de Contrato</option>
-                          <option value="Licencia">Licencia</option>
-                          <option value="Otro">Otro</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1">Observaciones <span className="text-slate-400">(opcional)</span></label>
-                        <textarea
-                          value={closeObservations}
-                          onChange={e => setCloseObservations(e.target.value)}
-                          rows={2}
-                          placeholder="Ej: El trabajador inició con otra empresa..."
-                          className="w-full p-2 text-sm bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-900/30 rounded-lg focus:border-red-500 outline-none text-slate-800 dark:text-zinc-200 resize-none"
-                        />
-                      </div>
-                      <button
-                        onClick={handleClose}
-                        disabled={isClosing}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all disabled:opacity-50"
-                      >
-                        {isClosing ? (
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <><Ban size={14} /> Confirmar Cierre</>
-                        )}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
 
               {/* Info Cliente y Empresa */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

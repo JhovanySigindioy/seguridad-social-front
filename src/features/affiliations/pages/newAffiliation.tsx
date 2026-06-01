@@ -19,8 +19,6 @@ interface ServiceState {
   active: boolean;
   entityId: string;
   riskLevel: string;
-  startDate: string;
-  endDate: string;
 }
 
 interface NewAffiliationPageProps {
@@ -44,11 +42,23 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
   const isAdmin = user?.role === 'admin';
 
   const [services, setServices] = useState<Record<keyof typeof SERVICE_CONFIG, ServiceState>>({
-    eps: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
-    pension: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
-    arl: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
-    ccf: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
+    eps: { active: false, entityId: '', riskLevel: '1' },
+    pension: { active: false, entityId: '', riskLevel: '1' },
+    arl: { active: false, entityId: '', riskLevel: '1' },
+    ccf: { active: false, entityId: '', riskLevel: '1' },
   });
+
+  const [globalStartDate, setGlobalStartDate] = useState(today);
+  const [globalEndDate, setGlobalEndDate] = useState('');
+
+  // Auto-calcular fecha de fin al cambiar la de inicio (por defecto +30 días)
+  useEffect(() => {
+    if (globalStartDate) {
+      const start = new Date(globalStartDate);
+      start.setDate(start.getDate() + 30);
+      setGlobalEndDate(start.toISOString().split('T')[0]);
+    }
+  }, [globalStartDate]);
 
   const { data: latestAffiliation, isFetching: isFetchingLatest } = useLatestAffiliationByClient(clientId);
 
@@ -86,13 +96,14 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     setCompanyId('');
     setValue('');
     setServices({
-      eps: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
-      pension: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
-      arl: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
-      ccf: { active: false, entityId: '', riskLevel: '1', startDate: today, endDate: '' },
+      eps: { active: false, entityId: '', riskLevel: '1' },
+      pension: { active: false, entityId: '', riskLevel: '1' },
+      arl: { active: false, entityId: '', riskLevel: '1' },
+      ccf: { active: false, entityId: '', riskLevel: '1' },
     });
     setMethod('');
     setSelectedOfficeId('');
+    setGlobalStartDate(today);
   }, []);
 
   const handleServiceChange = (service: keyof typeof SERVICE_CONFIG, field: keyof ServiceState, val: any) => {
@@ -102,10 +113,27 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
   const handleSubmit = async () => {
     if (!clientId) return showToast('Selecciona un cliente.');
     if (!companyId) return showToast('Selecciona la empresa.');
+    
+    const hasActiveService = Object.values(services).some(s => s.active);
+    if (!hasActiveService) return showToast('Debes seleccionar al menos un servicio para afiliar.');
+
     if (services.eps.active && !services.eps.entityId) return showToast('Selecciona la Entidad EPS.');
     if (services.arl.active && !services.arl.entityId) return showToast('Selecciona la Aseguradora ARL.');
     if (services.ccf.active && !services.ccf.entityId) return showToast('Selecciona la Caja de Compensación.');
     if (services.pension.active && !services.pension.entityId) return showToast('Selecciona el Fondo de Pensión.');
+    
+    if (!globalStartDate) return showToast('La fecha de inicio es obligatoria.');
+    if (!globalEndDate) return showToast('La fecha de fin es obligatoria.');
+
+    // Validar máximo 1 mes de diferencia (aprox 31 días)
+    const start = new Date(globalStartDate);
+    const end = new Date(globalEndDate);
+    const diffTime = end.getTime() - start.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return showToast('La fecha de fin debe ser posterior a la de inicio.');
+    if (diffDays > 31) return showToast('La afiliación no puede exceder 1 mes de vigencia.');
+
     if (!value || isNaN(Number(value))) return showToast('Ingresa un valor de cobro válido.');
 
     let currentOfficeId = activeOfficeId;
@@ -116,19 +144,11 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
       currentOfficeId = offices?.length > 0 ? offices[0].id : null;
     }
 
-    // Validar que todos los servicios activos tengan fecha de fin
-    const activeEntries = Object.entries(services).filter(([, s]) => s.active);
-    for (const [name, service] of activeEntries) {
-      if (!service.endDate) {
-        return showToast(`La fecha de fin es obligatoria para el servicio de ${name.toUpperCase()}.`);
-      }
-    }
-
     const formData: AffiliationCreateDTO = {
       client_id: Number(clientId),
       company_id: Number(companyId),
-      start_date: services.eps.active ? services.eps.startDate : (services.pension.active ? services.pension.startDate : (services.arl.active ? services.arl.startDate : services.ccf.startDate)),
-      end_date: services.eps.active ? services.eps.endDate || undefined : (services.pension.active ? services.pension.endDate || undefined : (services.arl.active ? services.arl.endDate || undefined : services.ccf.endDate || undefined)),
+      start_date: globalStartDate,
+      end_date: globalEndDate,
       value: Number(value),
       payment_method: (method || undefined) as AffiliationCreateDTO['payment_method'],
       eps_id: services.eps.active ? Number(services.eps.entityId) : null,
@@ -136,7 +156,7 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
       ccf_id: services.ccf.active ? Number(services.ccf.entityId) : null,
       pension_id: services.pension.active ? Number(services.pension.entityId) : null,
       risk_level: services.arl.active ? services.arl.riskLevel : null,
-      is_auto_renewed: false, // Ya no es automático por defecto si obligamos a poner fin
+      is_auto_renewed: false,
       office_id: currentOfficeId || undefined,
     };
 
@@ -244,6 +264,34 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
                 </div>
               </div>
 
+              {/* Row 2: Global Dates */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-2">
+                    Inicio de Cobertura
+                  </label>
+                  <input
+                    type="date"
+                    value={globalStartDate}
+                    onChange={e => setGlobalStartDate(e.target.value)}
+                    className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-2">
+                    Fin de Cobertura (Max 1 mes)
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={globalEndDate}
+                    min={globalStartDate}
+                    onChange={e => setGlobalEndDate(e.target.value)}
+                    className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                  />
+                </div>
+              </div>
+
               {/* Row 2: Services Toggle (full width) */}
               <div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
@@ -306,7 +354,7 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
                             </div>
                             <span className={`text-xs font-bold text-${config.color}-700 dark:text-${config.color}-300`}>{config.label}</span>
                           </div>
-                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                             <div>
                               <select
                                 value={service.entityId}
@@ -331,26 +379,6 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
                                 </select>
                               </div>
                             )}
-                            <div>
-                              <label className="block text-[10px] text-slate-400 mb-0.5 ml-1 italic font-medium">Inicio</label>
-                              <input
-                                type="date"
-                                value={service.startDate}
-                                onChange={e => handleServiceChange(key as keyof typeof SERVICE_CONFIG, 'startDate', e.target.value)}
-                                className={`w-full p-2 text-sm bg-white dark:bg-zinc-900 border border-${config.color}-200 dark:border-${config.color}-800/30 rounded-lg outline-none focus:border-${config.color}-500 text-slate-800 dark:text-zinc-200`}
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] text-slate-400 mb-0.5 ml-1 italic font-medium">Fin (Obligatorio)</label>
-                              <input
-                                type="date"
-                                required
-                                value={service.endDate}
-                                min={service.startDate}
-                                onChange={e => handleServiceChange(key as keyof typeof SERVICE_CONFIG, 'endDate', e.target.value)}
-                                className={`w-full p-2 text-sm bg-white dark:bg-zinc-900 border border-${config.color}-200 dark:border-${config.color}-800/30 rounded-lg outline-none focus:border-${config.color}-500 text-slate-800 dark:text-zinc-200`}
-                              />
-                            </div>
                           </div>
                         </div>
                       );
