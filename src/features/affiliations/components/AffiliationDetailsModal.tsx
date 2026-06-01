@@ -1,8 +1,8 @@
-import { useState } from 'react';
+
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Building2, UserCircle, Briefcase, FileText, DollarSign, Ban } from 'lucide-react';
+import { X, Building2, UserCircle, Briefcase, FileText, DollarSign } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
-import { useToast } from '../../../components/Toast';
+
 
 const formatDate = (value?: string | null) => {
   if (!value) return 'Sin registrar';
