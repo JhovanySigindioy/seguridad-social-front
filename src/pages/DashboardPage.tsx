@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, LogOut,
   Building2, Menu, X, Sun, Moon, Bell, Calendar,
-  TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus,
+  TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus, UserMinus,
   BarChart3, Target
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
 import { OfficeSelectorModal } from '../features/offices/components/OfficeSelectorModal';
 import { AffiliationsPage } from '../features/affiliations/pages/affiliations';
+import { AffiliationsTable } from '../features/affiliations/components/AffiliationsTable';
 import { NewAffiliationPage } from '../features/affiliations/pages/newAffiliation';
 import { DailyReportPage } from '../features/affiliations/pages/DailyReportPage';
 import { ClientsPage } from '../features/clients/pages/ClientsPage';
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { id: 'affiliations', label: 'Afiliaciones', icon: Users },
   { id: 'daily-report', label: 'Reporte Diario', icon: Calendar },
   { id: 'clients',      label: 'Clientes',     icon: UserPlus },
+  { id: 'retired',      label: 'Retirados',    icon: UserMinus },
   // { id: 'companies',    label: 'Empresas',     icon: Building2 },
   { id: 'reports',      label: 'Reportes',     icon: BarChart3, adminOnly: true },
   // { id: 'billing',      label: 'Facturación',  icon: FileText },
@@ -148,7 +150,6 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
   const { data: affiliations, isLoading } = useAffiliations();
   const { offices } = useOffices();
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | 'all'>('all');
-  const [affiliationsView, setAffiliationsView] = useState<'recent' | 'expiring'>('recent');
   const [targetMonth, setTargetMonth] = useState<number>(new Date().getMonth() + 1);
   const [targetYear, setTargetYear] = useState<number>(new Date().getFullYear());
   const isAdmin = user?.role === 'admin';
@@ -221,29 +222,12 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
   }, [dashboardStats]);
 
   // Recent: Only Activo, sorted by created_at
-  const recentAffiliations = useMemo(() => {
+  const displayedAffiliations = useMemo(() => {
     return filteredAffiliations
       .filter((a: any) => a.status === 'Activo')
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 8);
   }, [filteredAffiliations]);
-
-  // Expiring: Only Activo, expiring in next 7 days, sorted by end_date
-  const expiringAffiliations = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const in7Days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    
-    return filteredAffiliations
-      .filter((a: any) => {
-        if (a.status !== 'Activo' || !a.end_date) return false;
-        const endDate = new Date(a.end_date);
-        return endDate >= today && endDate <= in7Days;
-      })
-      .sort((a: any, b: any) => new Date(a.end_date).getTime() - new Date(b.end_date).getTime());
-  }, [filteredAffiliations]);
-
-  const displayedAffiliations = affiliationsView === 'recent' ? recentAffiliations : expiringAffiliations;
 
   const displayOfficeName = useMemo(() => {
     if (!isAdmin && activeOfficeId) {
@@ -380,42 +364,12 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
         </div>
       </div>
 
-      {/* Afiliaciones (Híbrido: Urgentes + Recientes) */}
+      {/* Afiliaciones Recientes */}
       <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-zinc-800">
           <div className="flex items-center gap-2">
             <Users size={16} className="text-indigo-600 dark:text-indigo-400" />
-            <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300">Afiliaciones</h3>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Switch */}
-            <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-1">
-              <button
-                onClick={() => setAffiliationsView('recent')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                  affiliationsView === 'recent'
-                    ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                    : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
-                }`}
-              >
-                Recientes
-              </button>
-              <button
-                onClick={() => setAffiliationsView('expiring')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                  affiliationsView === 'expiring'
-                    ? 'bg-white dark:bg-zinc-700 text-amber-600 dark:text-amber-400 shadow-sm'
-                    : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
-                }`}
-              >
-                Por Vencer
-                {expiringAffiliations.length > 0 && (
-                  <span className="ml-1.5 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 rounded-full text-[10px] font-bold">
-                    {expiringAffiliations.length}
-                  </span>
-                )}
-              </button>
-            </div>
+            <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300">Afiliaciones Recientes</h3>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -447,7 +401,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
               ) : (
                 <tr>
                   <td colSpan={isAdmin ? 5 : 4} className="px-4 py-8 text-center text-sm text-slate-400 dark:text-zinc-500">
-                    {affiliationsView === 'recent' ? 'Sin afiliaciones recientes' : 'Sin afiliaciones por vencer'}
+                    Sin afiliaciones recientes
                   </td>
                 </tr>
               )}
@@ -600,6 +554,7 @@ export const DashboardPage = ({ tab }: DashboardPageProps = {}) => {
       case 'daily-report': return <DailyReportPage />;
       case 'new-affiliation': return <NewAffiliationPage onCancel={() => setActiveTab('affiliations')} onSuccess={() => setActiveTab('affiliations')} />;
       case 'clients': return <ClientsPage />;
+      case 'retired': return <AffiliationsTable defaultTab="inactivas" hideTabs={true} />;
       case 'companies': return <ComingSoon label="Módulo de Empresas" />;
       case 'reports': return isAdmin ? <ReportsPage /> : <DashboardHome user={user} activeOfficeId={activeOfficeId} />;
       case 'billing':   return <ComingSoon label="Módulo de Facturación" />;

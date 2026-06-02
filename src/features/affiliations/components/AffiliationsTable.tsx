@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, Eye, UserPlus, UserMinus } from 'lucide-react';
+import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, Eye, UserPlus, Trash2 } from 'lucide-react';
 import { useAffiliations, useUpdateAffiliationStatus } from '../hooks/useAffiliations';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { PAYMENT_STATUSES, type AffiliationItem, type PaymentStatus } from '../types/affiliation.types';
@@ -9,7 +9,6 @@ import { AffiliationDetailsModal } from './AffiliationDetailsModal';
 import { EditAffiliationModal } from './EditAffiliationModal';
 import { CloseAffiliationModal } from './CloseAffiliationModal';
 
-const OFFICE_MANAGER_PAYMENT_STATUSES: PaymentStatus[] = ['Pendiente', 'En Proceso', 'Pagado'];
 const STATUS_STYLES: Record<PaymentStatus, {
   dot: string;
   select: string;
@@ -56,9 +55,11 @@ const formatDate = (value?: string | null) => {
 
 interface AffiliationsTableProps {
   onNewAffiliation?: () => void;
+  defaultTab?: 'activas' | 'inactivas';
+  hideTabs?: boolean;
 }
 
-export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) => {
+export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas', hideTabs = false }: AffiliationsTableProps) => {
   const currentDate = new Date();
   const [filterMonth, setFilterMonth] = useState<number>(currentDate.getMonth() + 1);
   const [filterYear, setFilterYear] = useState<number>(currentDate.getFullYear());
@@ -81,24 +82,14 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
   const canChangeStatus = allowedStatusOptions.length > 0;
   const isOfficeManager = user?.role === 'office_manager';
 
-  const [activeTab, setActiveTab] = useState<'activas' | 'vencidas' | 'inactivas'>('activas');
+  const [activeTab, setActiveTab] = useState<'activas' | 'inactivas'>(defaultTab);
 
   const filtered = useMemo(() => {
     if (!affiliations) return [];
     return affiliations
       .filter(a => {
         const isInactive = a.status === 'Inactivo';
-        
-        let isExpired = false;
-        if (!isInactive && a.end_date) {
-          const endDate = new Date(a.end_date);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          if (endDate < today) isExpired = true;
-        }
-
-        if (activeTab === 'activas' && (isInactive || isExpired)) return false;
-        if (activeTab === 'vencidas' && (!isExpired || isInactive)) return false;
+        if (activeTab === 'activas' && isInactive) return false;
         if (activeTab === 'inactivas' && !isInactive) return false;
 
         const matchSearch =
@@ -190,15 +181,7 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
 
   const getAffiliationStatus = (item: AffiliationItem) => {
     if (item.status === 'Inactivo') {
-      return { label: 'Inactiva', className: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' };
-    }
-    if (item.status === 'Activo' && item.end_date) {
-      const endDate = new Date(item.end_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (endDate < today) {
-        return { label: 'Vencida', className: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' };
-      }
+      return { label: 'Retirada', className: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' };
     }
     if (item.status === 'Activo') {
       return { label: 'Activa', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' };
@@ -209,28 +192,30 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
   return (
     <div className="flex flex-col gap-4">
       {/* Tabs */}
-      <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 rounded-xl p-1 border border-slate-100 dark:border-zinc-800 self-start">
-        <button
-          onClick={() => { setActiveTab('activas'); setCurrentPage(1); }}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
-            activeTab === 'activas' 
-              ? 'bg-indigo-600 text-white shadow-md' 
-              : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
-          }`}
-        >
-          Activas
-        </button>
-        <button
-          onClick={() => { setActiveTab('vencidas'); setCurrentPage(1); }}
-          className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
-            activeTab === 'vencidas' 
-              ? 'bg-red-500 text-white shadow-md' 
-              : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
-          }`}
-        >
-          Vencidas
-        </button>
-      </div>
+      {!hideTabs && (
+        <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 rounded-xl p-1 border border-slate-100 dark:border-zinc-800 self-start">
+          <button
+            onClick={() => { setActiveTab('activas'); setCurrentPage(1); }}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+              activeTab === 'activas' 
+                ? 'bg-indigo-600 text-white shadow-md' 
+                : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
+            }`}
+          >
+            Activas
+          </button>
+          <button
+            onClick={() => { setActiveTab('inactivas'); setCurrentPage(1); }}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+              activeTab === 'inactivas' 
+                ? 'bg-red-500 text-white shadow-md' 
+                : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
+            }`}
+          >
+            Retiradas
+          </button>
+        </div>
+      )}
 
       {/* Toolbar: Search + Filters + Nueva Afiliación button */}
       <div className="flex flex-col sm:flex-row gap-3 items-center sm:items-center">
@@ -484,10 +469,10 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
                         <button
                           onClick={() => item.status !== 'Inactivo' && setClosingItem(item)}
                           disabled={item.status === 'Inactivo'}
-                          className={`p-1.5 rounded-lg transition-colors ${item.status === 'Inactivo' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/30'}`}
-                          title={item.status === 'Inactivo' ? 'Ya está inactiva' : 'Finalizar cobertura'}
+                          className={`p-1.5 rounded-lg transition-colors ${item.status === 'Inactivo' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30'}`}
+                          title={item.status === 'Inactivo' ? 'Ya está retirada' : 'Retirar afiliación'}
                         >
-                          <UserMinus size={15} />
+                          <Trash2 size={15} />
                         </button>
                       </div>
                     </td>

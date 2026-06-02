@@ -13,7 +13,6 @@ const SERVICE_CONFIG = {
   ccf: { label: 'Caja CCF', shortLabel: 'CCF', color: 'blue', icon: Building },
 };
 
-const today = new Date().toISOString().split('T')[0];
 
 interface ServiceState {
   active: boolean;

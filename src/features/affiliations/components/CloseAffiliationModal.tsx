@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, AlertTriangle, CalendarOff } from 'lucide-react';
+import { X, AlertTriangle, Trash2 } from 'lucide-react';
 import { useCloseAffiliation } from '../hooks/useAffiliations';
 import { useToast } from '../../../components/Toast';
 import type { AffiliationItem } from '../types/affiliation.types';
@@ -48,10 +48,10 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
         withdrawal_reason: reason,
         withdrawal_observations: observations.trim() || undefined,
       });
-      showToast('Cobertura finalizada correctamente', 'success');
+      showToast('Afiliación retirada correctamente', 'success');
       onClose();
     } catch (err: any) {
-      showToast(err.response?.data?.error || 'Error al finalizar la afiliación');
+      showToast(err.response?.data?.error || 'Error al retirar la afiliación');
     }
   };
 
@@ -75,12 +75,12 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
           >
             {/* Header */}
             <div className="bg-orange-50 dark:bg-orange-900/20 px-6 py-5 border-b border-orange-100 dark:border-orange-900/30 flex items-start gap-4">
-              <div className="p-3 bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-xl">
-                <CalendarOff size={24} />
+              <div className="p-3 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl">
+                <Trash2 size={24} />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Finalizar Cobertura</h3>
-                <p className="text-sm text-orange-600/80 dark:text-orange-400/80 mt-1">Cierra el periodo de esta afiliación para que pase a Vencidas.</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Retirar Afiliación</h3>
+                <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-1">Al retirar esta afiliación, pasará a estado Retirada.</p>
               </div>
               <button onClick={onClose} className="p-1 text-slate-400 hover:bg-white/50 dark:hover:bg-zinc-800/50 rounded-lg">
                 <X size={20} />
@@ -97,7 +97,7 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
-                  Fecha de Finalización
+                  Fecha de Retiro
                 </label>
                 <div className="w-full p-2.5 text-sm bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-slate-500 dark:text-zinc-400 cursor-not-allowed">
                   {endDate} (Fin de mes)
@@ -135,7 +135,7 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
               <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-900/30 rounded-lg">
                 <AlertTriangle size={16} className="text-blue-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-blue-700 dark:text-blue-400/90 leading-relaxed">
-                  Al finalizarla, pasará a la pestaña de "Vencidas" y podrás crearle una nueva afiliación al cliente.
+                  Al retirarla, se registrará la fecha de retiro a fin de mes y el estado cambiará a Retirada.
                 </p>
               </div>
             </div>
@@ -152,12 +152,12 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
               <button
                 onClick={handleSubmit}
                 disabled={isPending}
-                className="flex items-center justify-center gap-2 px-5 py-2 text-sm font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-xl shadow-lg shadow-orange-500/20 transition-all disabled:opacity-50 min-w-[140px]"
+                className="flex items-center justify-center gap-2 px-5 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-lg shadow-red-500/20 transition-all disabled:opacity-50 min-w-[140px]"
               >
                 {isPending ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  'Finalizar'
+                  'Retirar'
                 )}
               </button>
             </div>
