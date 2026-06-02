@@ -102,15 +102,12 @@ export const DailyReportPage = () => {
     </span>
   );
 
-  const OFFICE_MANAGER_PAYMENT_STATUSES: PaymentStatus[] = ['Pendiente', 'En Proceso'];
   const getAllowedStatuses = (role?: string): PaymentStatus[] => {
-    if (role === 'admin') return [...PAYMENT_STATUSES];
-    if (role === 'office_manager') return OFFICE_MANAGER_PAYMENT_STATUSES;
+    if (role === 'admin' || role === 'office_manager') return [...PAYMENT_STATUSES];
     return [];
   };
 
   const allowedStatusOptions = useMemo(() => getAllowedStatuses(user?.role), [user?.role]);
-  const isOfficeManager = user?.role === 'office_manager';
 
   const getStatusOptions = (currentStatus: PaymentStatus) => {
     return allowedStatusOptions.includes(currentStatus)
@@ -118,13 +115,8 @@ export const DailyReportPage = () => {
       : [currentStatus, ...allowedStatusOptions];
   };
 
-  const isStatusLocked = (item: AffiliationItem) => {
-    return isOfficeManager && item.payment_status === 'Pagado';
-  };
-
   const handleStatusChange = (item: AffiliationItem, paymentStatus: PaymentStatus) => {
     if (item.payment_status === paymentStatus) return;
-    if (isOfficeManager && item.payment_status === 'Pagado') return;
     updateStatus.mutate({
       id: item.id,
       payment_status: paymentStatus,
@@ -371,29 +363,25 @@ export const DailyReportPage = () => {
                         {item.status === 'Inactivo' ? (
                           <StatusBadge status={item.payment_status} />
                         ) : allowedStatusOptions.length > 0 ? (
-                          <div className={`inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${isStatusLocked(item) ? 'cursor-not-allowed opacity-80' : ''}`}
+                          <div className="inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm"
                             style={{
                               backgroundColor: item.payment_status === 'Pagado' ? '#ecfdf5' : item.payment_status === 'En Proceso' ? '#eff6ff' : '#fffbeb',
                               borderColor: item.payment_status === 'Pagado' ? '#a7f3d0' : item.payment_status === 'En Proceso' ? '#bfdbfe' : '#fde68a',
                               color: item.payment_status === 'Pagado' ? '#047857' : item.payment_status === 'En Proceso' ? '#1d4ed8' : '#b45309',
                             }}
-                            title={isStatusLocked(item) ? 'Estado pagado bloqueado para office_manager' : 'Cambiar estado'}
+                            title="Cambiar estado"
                           >
                             <span className={`w-2 h-2 rounded-full ${item.payment_status === 'Pagado' ? 'bg-emerald-500' : item.payment_status === 'En Proceso' ? 'bg-blue-500' : 'bg-amber-500'
                               }`} />
-                            {isStatusLocked(item) ? (
-                              <span className="min-w-[85px]">{item.payment_status}</span>
-                            ) : (
-                              <select
-                                value={item.payment_status}
-                                onChange={e => handleStatusChange(item, e.target.value as PaymentStatus)}
-                                className="min-w-[85px] cursor-pointer bg-transparent text-xs font-semibold outline-none"
-                              >
-                                {getStatusOptions(item.payment_status).map(s => (
-                                  <option key={s} value={s}>{s}</option>
-                                ))}
-                              </select>
-                            )}
+                            <select
+                              value={item.payment_status}
+                              onChange={e => handleStatusChange(item, e.target.value as PaymentStatus)}
+                              className="min-w-[85px] cursor-pointer bg-transparent text-xs font-semibold outline-none"
+                            >
+                              {getStatusOptions(item.payment_status).map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
                           </div>
                         ) : (
                           <StatusBadge status={item.payment_status} />

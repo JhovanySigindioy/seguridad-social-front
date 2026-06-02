@@ -201,6 +201,10 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
     }
   };
 
+  const canDownloadInvoice = (status: AffiliationItem['payment_status']) => {
+    return status === 'En Proceso' || status === 'Pagado';
+  };
+
 
 
   return (
@@ -442,9 +446,9 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                         </button>
                         <button
                           onClick={() => handleDownloadInvoice(item)}
-                          disabled={downloadingId === item.id || item.payment_status !== 'Pagado'}
-                          className={`p-1.5 rounded-lg transition-colors ${item.payment_status !== 'Pagado' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'} ${downloadingId === item.id ? 'opacity-50 cursor-wait' : ''}`}
-                          title={item.payment_status !== 'Pagado' ? 'Solo disponible si el estado es Pagado' : 'Descargar Factura'}
+                          disabled={downloadingId === item.id || !canDownloadInvoice(item.payment_status)}
+                          className={`p-1.5 rounded-lg transition-colors ${!canDownloadInvoice(item.payment_status) ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'} ${downloadingId === item.id ? 'opacity-50 cursor-wait' : ''}`}
+                          title={!canDownloadInvoice(item.payment_status) ? 'Disponible si el estado es En Proceso o Pagado' : 'Descargar Factura'}
                         >
                           {downloadingId === item.id ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
                         </button>
