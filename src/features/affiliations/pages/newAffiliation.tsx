@@ -48,17 +48,28 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     ccf: { active: false, entityId: '', riskLevel: '1' },
   });
 
-  const [globalStartDate, setGlobalStartDate] = useState(today);
-  const [globalEndDate, setGlobalEndDate] = useState('');
+  const getCurrentMonth = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+  
+  const [coverageMonth, setCoverageMonth] = useState(getCurrentMonth());
 
-  // Auto-calcular fecha de fin al cambiar la de inicio (por defecto +30 días)
-  useEffect(() => {
-    if (globalStartDate) {
-      const start = new Date(globalStartDate);
-      start.setDate(start.getDate() + 30);
-      setGlobalEndDate(start.toISOString().split('T')[0]);
-    }
-  }, [globalStartDate]);
+  // Auto-calculate start and end dates based on the selected month
+  const { globalStartDate, globalEndDate } = useMemo(() => {
+    const [yearStr, monthStr] = coverageMonth.split('-');
+    const start = new Date(Number(yearStr), Number(monthStr) - 1, 1);
+    const end = new Date(Number(yearStr), Number(monthStr), 0); // last day of month
+    
+    const formatLocal = (d: Date) => {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    
+    return {
+      globalStartDate: formatLocal(start),
+      globalEndDate: formatLocal(end)
+    };
+  }, [coverageMonth]);
 
   const { data: latestAffiliation, isFetching: isFetchingLatest } = useLatestAffiliationByClient(clientId);
 
@@ -80,6 +91,7 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
 
   const [value, setValue] = useState('');
   const [method, setMethod] = useState<string>('');
+  const [observation, setObservation] = useState('');
 
   const filteredClients = useMemo(() => {
     if (!cat?.clients) return [];
@@ -102,8 +114,9 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
       ccf: { active: false, entityId: '', riskLevel: '1' },
     });
     setMethod('');
+    setObservation('');
     setSelectedOfficeId('');
-    setGlobalStartDate(today);
+    setCoverageMonth(getCurrentMonth());
   }, []);
 
   const handleServiceChange = (service: keyof typeof SERVICE_CONFIG, field: keyof ServiceState, val: any) => {
@@ -122,17 +135,7 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     if (services.ccf.active && !services.ccf.entityId) return showToast('Selecciona la Caja de Compensación.');
     if (services.pension.active && !services.pension.entityId) return showToast('Selecciona el Fondo de Pensión.');
     
-    if (!globalStartDate) return showToast('La fecha de inicio es obligatoria.');
-    if (!globalEndDate) return showToast('La fecha de fin es obligatoria.');
-
-    // Validar máximo 1 mes de diferencia (aprox 31 días)
-    const start = new Date(globalStartDate);
-    const end = new Date(globalEndDate);
-    const diffTime = end.getTime() - start.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays <= 0) return showToast('La fecha de fin debe ser posterior a la de inicio.');
-    if (diffDays > 31) return showToast('La afiliación no puede exceder 1 mes de vigencia.');
+    if (!globalStartDate || !globalEndDate) return showToast('Error al calcular las fechas del mes.');
 
     if (!value || isNaN(Number(value))) return showToast('Ingresa un valor de cobro válido.');
 
@@ -158,6 +161,7 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
       risk_level: services.arl.active ? services.arl.riskLevel : null,
       is_auto_renewed: false,
       office_id: currentOfficeId || undefined,
+      observation: observation || undefined,
     };
 
     try {
@@ -265,30 +269,20 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
               </div>
 
               {/* Row 2: Global Dates */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-2">
-                    Inicio de Cobertura
-                  </label>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-2">
+                  Mes de Cobertura
+                </label>
+                <div className="flex gap-4">
                   <input
-                    type="date"
-                    value={globalStartDate}
-                    onChange={e => setGlobalStartDate(e.target.value)}
-                    className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                    type="month"
+                    value={coverageMonth}
+                    onChange={e => setCoverageMonth(e.target.value)}
+                    className="w-1/2 p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
                   />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-2">
-                    Fin de Cobertura (Max 1 mes)
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={globalEndDate}
-                    min={globalStartDate}
-                    onChange={e => setGlobalEndDate(e.target.value)}
-                    className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
-                  />
+                  <div className="w-1/2 flex items-center px-4 p-2.5 text-xs text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-lg">
+                    Vigencia: {globalStartDate} al {globalEndDate}
+                  </div>
                 </div>
               </div>
 
@@ -417,6 +411,16 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
                       <option value="Daviplata">Daviplata</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-2">Observaciones</label>
+                  <textarea
+                    value={observation}
+                    onChange={e => setObservation(e.target.value)}
+                    placeholder="Opcional..."
+                    rows={2}
+                    className="w-full p-2 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200 resize-none"
+                  />
                 </div>
               </div>
             </div>

@@ -20,12 +20,22 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
   const [observations, setObservations] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
-      setEndDate(new Date().toISOString().split('T')[0]);
+    if (isOpen && affiliation?.start_date) {
+      try {
+        const d = new Date(affiliation.start_date);
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1; // 1-based
+        // Get last day of that month
+        const endD = new Date(y, m, 0);
+        const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+        setEndDate(endStr);
+      } catch {
+        setEndDate(new Date().toISOString().split('T')[0]);
+      }
       setReason('Voluntario');
       setObservations('');
     }
-  }, [isOpen]);
+  }, [isOpen, affiliation]);
 
   const handleSubmit = async () => {
     if (!affiliation) return;
@@ -87,14 +97,11 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
-                  Fecha de Finalización *
+                  Fecha de Finalización
                 </label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:border-orange-500 text-slate-800 dark:text-zinc-200"
-                />
+                <div className="w-full p-2.5 text-sm bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-slate-500 dark:text-zinc-400 cursor-not-allowed">
+                  {endDate} (Fin de mes)
+                </div>
               </div>
 
               <div>

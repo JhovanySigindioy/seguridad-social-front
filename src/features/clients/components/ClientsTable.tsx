@@ -5,6 +5,7 @@ import { useClients, useDeleteClient } from '../hooks/useClients';
 import type { Client } from '../types/client.types';
 import { CreateClientModal } from './CreateClientModal';
 import { EditClientModal } from './EditClientModal';
+import { useAuthStore } from '../../../store/useAuthStore';
 
 export const ClientsTable = () => {
   const { data: clients, isLoading, isError, refetch, isFetching } = useClients();
@@ -15,11 +16,19 @@ export const ClientsTable = () => {
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const { user, activeOfficeId } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
   const itemsPerPage = 10;
 
   const filtered = useMemo(() => {
     if (!clients) return [];
-    return clients.filter(c => {
+    
+    const officeFiltered = clients.filter(c => {
+      if (isAdmin) return true;
+      return c.office_id === activeOfficeId;
+    });
+
+    return officeFiltered.filter(c => {
       const fullName = `${c.first_name} ${c.second_name || ''} ${c.first_lastname} ${c.second_lastname || ''}`.replace(/\s+/g, ' ').toLowerCase();
       const matchSearch =
         fullName.includes(search.toLowerCase()) ||
@@ -28,7 +37,7 @@ export const ClientsTable = () => {
         (c.office_name?.toLowerCase().includes(search.toLowerCase()) ?? false);
       return matchSearch;
     });
-  }, [clients, search]);
+  }, [clients, search, isAdmin, activeOfficeId]);
 
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -105,7 +114,7 @@ export const ClientsTable = () => {
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Cliente</th>
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Identificación</th>
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Email</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Oficina</th>
+              {isAdmin && <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Oficina</th>}
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Acciones</th>
             </tr>
           </thead>
@@ -150,11 +159,13 @@ export const ClientsTable = () => {
                     <td className="px-4 py-3.5 text-slate-600 dark:text-zinc-400">
                       {client.email || <span className="text-slate-400">Sin email</span>}
                     </td>
-                    <td className="px-4 py-3.5">
-                      <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded text-xs font-medium">
-                        {client.office_name}
-                      </span>
-                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3.5">
+                        <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded text-xs font-medium">
+                          {client.office_name}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
                         <button

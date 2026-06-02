@@ -9,7 +9,7 @@ import { AffiliationDetailsModal } from './AffiliationDetailsModal';
 import { EditAffiliationModal } from './EditAffiliationModal';
 import { CloseAffiliationModal } from './CloseAffiliationModal';
 
-const OFFICE_MANAGER_PAYMENT_STATUSES: PaymentStatus[] = ['Pendiente', 'En Proceso'];
+const OFFICE_MANAGER_PAYMENT_STATUSES: PaymentStatus[] = ['Pendiente', 'En Proceso', 'Pagado'];
 const STATUS_STYLES: Record<PaymentStatus, {
   dot: string;
   select: string;
@@ -37,8 +37,7 @@ const STATUS_STYLES: Record<PaymentStatus, {
 };
 
 const getAllowedStatuses = (role?: string): PaymentStatus[] => {
-  if (role === 'admin') return [...PAYMENT_STATUSES];
-  if (role === 'office_manager') return OFFICE_MANAGER_PAYMENT_STATUSES;
+  if (role === 'admin' || role === 'office_manager') return [...PAYMENT_STATUSES];
   return [];
 };
 
@@ -129,14 +128,9 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
       : [currentStatus, ...allowedStatusOptions];
   };
 
-  const isStatusLocked = (item: AffiliationItem) => {
-    return isOfficeManager && item.payment_status === 'Pagado';
-  };
-
   const handleStatusChange = (item: AffiliationItem, paymentStatus: PaymentStatus) => {
     const currentPaymentStatus = item.payment_status;
     if (currentPaymentStatus === paymentStatus) return;
-    if (isOfficeManager && currentPaymentStatus === 'Pagado') return;
 
     setStatusError(null);
     setUpdatingStatusId(item.id);
@@ -340,6 +334,7 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
                 { label: 'Valor', field: 'value' },
                 { label: 'Estado', field: 'status' },
                 { label: 'Pago', field: 'payment_status' },
+                { label: 'Observaciones', field: 'observation' },
                 { label: 'Acciones', field: '' },
               ]
                 .filter(col => !(isOfficeManager && col.hideForManager))
@@ -358,7 +353,7 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="border-b border-slate-50 dark:border-zinc-800/60">
-                  {Array.from({ length: 9 }).map((_, j) => (
+                  {Array.from({ length: 10 }).map((_, j) => (
                     <td key={j} className="px-4 py-3.5">
                       <div className="h-3 bg-slate-100 dark:bg-zinc-800 rounded-full animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
                     </td>
@@ -367,7 +362,7 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center py-20 text-slate-400">
+                <td colSpan={10} className="text-center py-20 text-slate-400">
                   <FileText size={40} className="mx-auto mb-3 opacity-30" />
                   <p>No se encontraron afiliaciones</p>
                 </td>
@@ -441,32 +436,33 @@ export const AffiliationsTable = ({ onNewAffiliation }: AffiliationsTableProps) 
                           <StatusBadge status={currentPaymentStatus} />
                         ) : canChangeStatus ? (
                           <div
-                            title={isStatusLocked(item) ? 'Estado pagado bloqueado para office_manager' : 'Cambiar estado'}
-                            className={`inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${STATUS_STYLES[currentPaymentStatus].select} ${isStatusLocked(item) ? 'cursor-not-allowed opacity-80' : ''}`}
+                            title="Cambiar estado"
+                            className={`inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${STATUS_STYLES[currentPaymentStatus].select}`}
                           >
                             <span className={`h-2 w-2 rounded-full ${STATUS_STYLES[currentPaymentStatus].dot}`} />
-                            {isStatusLocked(item) ? (
-                              <span className="min-w-[80px]">{currentPaymentStatus}</span>
-                            ) : (
-                              <select
-                                aria-label="Cambiar estado"
-                                value={currentPaymentStatus}
-                                disabled={updatingStatusId === item.id}
-                                onChange={event => handleStatusChange(item, event.target.value as PaymentStatus)}
-                                className="min-w-[90px] cursor-pointer bg-transparent text-xs font-semibold outline-none disabled:cursor-wait disabled:opacity-60"
-                              >
-                                {getStatusOptions(currentPaymentStatus).map(status => (
-                                  <option key={status} value={status}>
-                                    {status}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
+                            <select
+                              aria-label="Cambiar estado"
+                              value={currentPaymentStatus}
+                              disabled={updatingStatusId === item.id}
+                              onChange={event => handleStatusChange(item, event.target.value as PaymentStatus)}
+                              className="min-w-[90px] cursor-pointer bg-transparent text-xs font-semibold outline-none disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {getStatusOptions(currentPaymentStatus).map(status => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         ) : (
                           <StatusBadge status={currentPaymentStatus} />
                         );
                       })()}
+                    </td>
+                    <td className="px-4 py-3.5 max-w-[150px]">
+                      <div className="truncate text-xs text-slate-500 dark:text-zinc-400" title={item.observation || 'Sin observaciones'}>
+                        {item.observation || '—'}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
                       <div className="flex items-center gap-2">

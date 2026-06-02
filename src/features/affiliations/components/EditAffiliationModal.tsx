@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Building, Heart, Shield, Landmark, CheckCircle2 } from 'lucide-react';
 import { useAffiliationFormData, useUpdateAffiliation } from '../hooks/useAffiliations';
@@ -18,9 +18,27 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
 
   const [clientId, setClientId] = useState('');
   const [companyId, setCompanyId] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const today = new Date().toISOString().split('T')[0];
+  const getCurrentMonth = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  const [coverageMonth, setCoverageMonth] = useState(getCurrentMonth());
+
+  const { startDate, endDate } = useMemo(() => {
+    const [yearStr, monthStr] = coverageMonth.split('-');
+    const start = new Date(Number(yearStr), Number(monthStr) - 1, 1);
+    const end = new Date(Number(yearStr), Number(monthStr), 0); // last day of month
+    
+    const formatLocal = (d: Date) => {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    
+    return {
+      startDate: formatLocal(start),
+      endDate: formatLocal(end)
+    };
+  }, [coverageMonth]);
   const [hasEps, setHasEps] = useState(false);
   const [hasArl, setHasArl] = useState(false);
   const [hasCcf, setHasCcf] = useState(false);
@@ -35,6 +53,7 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
   const [value, setValue] = useState('');
   const [method, setMethod] = useState('');
   const [isAutoRenewed, setIsAutoRenewed] = useState(true);
+  const [observation, setObservation] = useState('');
 
   useEffect(() => {
     if (affiliation && isOpen) {
@@ -43,17 +62,20 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
       setValue(String(affiliation.value));
       setMethod((affiliation as any).payment_method || '');
       setIsAutoRenewed(Boolean(affiliation.is_auto_renewed));
-      const formatDate = (date: string | null) => {
-        if (!date) return '';
-        try {
-          return new Date(date).toISOString().split('T')[0];
-        } catch {
-          return '';
-        }
-      };
+      setObservation(affiliation.observation || '');
 
-      setStartDate(formatDate(affiliation.start_date));
-      setEndDate(formatDate(affiliation.end_date));
+      // Set coverage month based on start_date
+      if (affiliation.start_date) {
+        try {
+          const d = new Date(affiliation.start_date);
+          // Get local year and month
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          setCoverageMonth(`${y}-${m}`);
+        } catch {
+          // ignore
+        }
+      }
 
       const hasEpsVal = affiliation.eps_name && affiliation.eps_name !== '—';
       const hasArlVal = affiliation.arl_name && affiliation.arl_name !== '—';
@@ -111,6 +133,7 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
         pension_id: hasPension ? Number(pensionId) : null,
         risk_level: hasArl ? riskLevel : null,
         is_auto_renewed: isAutoRenewed,
+        observation: observation || null,
         month: affiliation?.month,
         year: affiliation?.year,
       });
@@ -222,28 +245,17 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
                         <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600 dark:text-indigo-400"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                         </div>
-                        <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">Fechas</span>
+                        <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">Mes de Cobertura</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Inicio Afiliación</label>
-                          <input
-                            type="date"
-                            value={startDate}
-                            max={today}
-                            onChange={e => setStartDate(e.target.value)}
-                            className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Fin Afiliación <span className="text-slate-400">(opcional)</span></label>
-                          <input
-                            type="date"
-                            value={endDate}
-                            min={startDate}
-                            onChange={e => setEndDate(e.target.value)}
-                            className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
-                          />
+                      <div className="flex gap-4 items-center">
+                        <input
+                          type="month"
+                          value={coverageMonth}
+                          onChange={e => setCoverageMonth(e.target.value)}
+                          className="w-1/2 p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                        />
+                        <div className="w-1/2 flex items-center px-4 p-2.5 text-xs text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-xl">
+                          Vigencia: {startDate} al {endDate}
                         </div>
                       </div>
                     </div>
@@ -342,6 +354,16 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
                             <option value="Nequi">Nequi</option>
                             <option value="Daviplata">Daviplata</option>
                           </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-500 dark:text-zinc-500 mb-1">Observaciones</label>
+                          <textarea
+                            value={observation}
+                            onChange={e => setObservation(e.target.value)}
+                            placeholder="Opcional..."
+                            rows={2}
+                            className="w-full p-2 text-sm bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-lg outline-none focus:border-indigo-500 text-slate-800 dark:text-zinc-200 resize-none"
+                          />
                         </div>
                       </div>
                     </div>

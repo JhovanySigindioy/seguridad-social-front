@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, LogOut,
   Building2, Menu, X, Sun, Moon, Bell, Calendar,
   TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus,
-  BarChart3
+  BarChart3, Target
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
@@ -199,6 +199,16 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
     };
   }, [dashboardStats]);
 
+  const targetGoal = useMemo(() => {
+    if (isAdmin && selectedOfficeId === 'all') return (offices?.length || 1) * 10;
+    return 10;
+  }, [isAdmin, selectedOfficeId, offices]);
+
+  const completionPercentage = useMemo(() => {
+    if (isLoading) return 0;
+    return Math.min(100, Math.round((stats.total / (targetGoal || 1)) * 100));
+  }, [stats.total, targetGoal, isLoading]);
+
   // Trend data (last 6 months)
   const trendData = useMemo(() => {
     if (!dashboardStats) return [];
@@ -278,8 +288,47 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
         </div>
       </div>
 
+      {/* Goal Progress Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border-2 border-blue-500/20 dark:border-blue-500/30 shadow-lg shadow-blue-500/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden"
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none -mr-32 -mt-32" />
+        
+        <div className="relative z-10 flex items-center gap-4">
+          <div className="p-4 bg-blue-100 dark:bg-blue-900/40 rounded-2xl text-blue-600 dark:text-blue-400">
+            <Target size={32} strokeWidth={2.5} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-800 dark:text-zinc-100 uppercase tracking-tight">
+              Meta de Afiliaciones
+            </h2>
+            <p className="text-sm font-medium text-slate-500 dark:text-zinc-400 mt-1">
+              Progreso actual: <span className="text-blue-600 dark:text-blue-400 font-bold">{stats.total}</span> de <span className="font-bold">{targetGoal}</span> afiliaciones
+            </p>
+          </div>
+        </div>
+
+        <div className="relative z-10 w-full md:w-auto flex items-center gap-5">
+          <div className="flex-1 md:w-48 lg:w-64 h-3.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden shadow-inner">
+            <motion.div 
+              className="h-full bg-blue-500 dark:bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
+              initial={{ width: 0 }}
+              animate={{ width: `${isLoading ? 0 : Math.min(100, completionPercentage)}%` }}
+              transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+            />
+          </div>
+          <div className="flex flex-col items-end min-w-[4rem]">
+            <span className="text-3xl font-black text-blue-600 dark:text-blue-400 leading-none">
+              {isLoading ? '…' : completionPercentage}%
+            </span>
+          </div>
+        </div>
+      </motion.div>
+
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard label="Total" value={isLoading ? '…' : stats.total}
           icon={TrendingUp} bg="bg-indigo-100 dark:bg-indigo-900/30"
           iconColor="text-indigo-600 dark:text-indigo-400" delay={0.05} />
@@ -292,9 +341,6 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
         <StatCard label="Pendientes" value={isLoading ? '…' : stats.pending}
           icon={AlertCircle} bg="bg-amber-100 dark:bg-amber-900/30"
           iconColor="text-amber-600 dark:text-amber-400" delay={0.2} />
-        <StatCard label="Vencidas" value={isLoading ? '…' : stats.overdue}
-          icon={AlertCircle} bg="bg-red-100 dark:bg-red-900/30"
-          iconColor="text-red-600 dark:text-red-400" delay={0.25} />
       </div>
 
       {/* Trend + Próximas a Vencer */}
