@@ -40,6 +40,7 @@ export const useCreateClient = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['affiliations', 'form-data'] });
     },
   });
 };
