@@ -22,12 +22,10 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
   useEffect(() => {
     if (isOpen && affiliation?.start_date) {
       try {
-        const d = new Date(affiliation.start_date);
+        const d = new Date();
         const y = d.getFullYear();
-        const m = d.getMonth() + 1; // 1-based
-        // Get last day of that month
-        const endD = new Date(y, m, 0);
-        const endStr = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`;
+        const m = d.getMonth() + 1;
+        const endStr = `${y}-${String(m).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         setEndDate(endStr);
       } catch {
         setEndDate(new Date().toISOString().split('T')[0]);
@@ -100,7 +98,7 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
                   Fecha de Retiro
                 </label>
                 <div className="w-full p-2.5 text-sm bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-slate-500 dark:text-zinc-400 cursor-not-allowed">
-                  {endDate} (Fin de mes)
+                  {endDate} (Hoy)
                 </div>
               </div>
 
@@ -135,7 +133,7 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
               <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-900/30 rounded-lg">
                 <AlertTriangle size={16} className="text-blue-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-blue-700 dark:text-blue-400/90 leading-relaxed">
-                  Al retirarla, se registrará la fecha de retiro a fin de mes y el estado cambiará a Retirada.
+                  Al retirarla, se registrará la fecha de retiro con fecha de hoy y el estado cambiará a Retirada.
                 </p>
               </div>
             </div>

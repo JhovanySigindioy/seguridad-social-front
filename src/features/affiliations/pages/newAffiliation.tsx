@@ -47,29 +47,6 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     ccf: { active: false, entityId: '', riskLevel: '1' },
   });
 
-  const getCurrentMonth = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  };
-  
-  const [coverageMonth, setCoverageMonth] = useState(getCurrentMonth());
-
-  // Auto-calculate start and end dates based on the selected month
-  const { globalStartDate, globalEndDate } = useMemo(() => {
-    const [yearStr, monthStr] = coverageMonth.split('-');
-    const start = new Date(Number(yearStr), Number(monthStr) - 1, 1);
-    const end = new Date(Number(yearStr), Number(monthStr), 0); // last day of month
-    
-    const formatLocal = (d: Date) => {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-    
-    return {
-      globalStartDate: formatLocal(start),
-      globalEndDate: formatLocal(end)
-    };
-  }, [coverageMonth]);
-
   const { data: latestAffiliation, isFetching: isFetchingLatest } = useLatestAffiliationByClient(clientId);
 
   useEffect(() => {
@@ -115,7 +92,6 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     setMethod('');
     setObservation('');
     setSelectedOfficeId('');
-    setCoverageMonth(getCurrentMonth());
   }, []);
 
   const handleServiceChange = (service: keyof typeof SERVICE_CONFIG, field: keyof ServiceState, val: any) => {
@@ -134,8 +110,6 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     if (services.ccf.active && !services.ccf.entityId) return showToast('Selecciona la Caja de Compensación.');
     if (services.pension.active && !services.pension.entityId) return showToast('Selecciona el Fondo de Pensión.');
     
-    if (!globalStartDate || !globalEndDate) return showToast('Error al calcular las fechas del mes.');
-
     if (!value || isNaN(Number(value))) return showToast('Ingresa un valor de cobro válido.');
 
     let currentOfficeId = activeOfficeId;
@@ -149,8 +123,6 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
     const formData: AffiliationCreateDTO = {
       client_id: Number(clientId),
       company_id: Number(companyId),
-      start_date: globalStartDate,
-      end_date: globalEndDate,
       value: Number(value),
       payment_method: (method || undefined) as AffiliationCreateDTO['payment_method'],
       eps_id: services.eps.active ? Number(services.eps.entityId) : null,
@@ -267,62 +239,36 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
                 </div>
               </div>
 
-              {/* Row 2: Global Dates */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-2">
-                  Mes de Cobertura
-                </label>
-                <div className="flex gap-4">
-                  <input
-                    type="month"
-                    value={coverageMonth}
-                    onChange={e => setCoverageMonth(e.target.value)}
-                    className="w-1/2 p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
-                  />
-                  <div className="w-1/2 flex items-center px-4 p-2.5 text-xs text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-lg">
-                    Vigencia: {globalStartDate} al {globalEndDate}
-                  </div>
-                </div>
-              </div>
-
               {/* Row 2: Services Toggle (full width) */}
               <div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                   {(Object.keys(SERVICE_CONFIG) as Array<keyof typeof SERVICE_CONFIG>).map(key => {
                     const config = SERVICE_CONFIG[key];
                     const isActive = services[key].active;
-                    const colorClasses: Record<string, string> = {
-                      emerald: isActive ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : 'border-emerald-200 dark:border-emerald-800 hover:border-emerald-400',
-                      indigo: isActive ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-indigo-200 dark:border-indigo-800 hover:border-indigo-400',
-                      amber: isActive ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20' : 'border-amber-200 dark:border-amber-800 hover:border-amber-400',
-                      blue: isActive ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-blue-200 dark:border-blue-800 hover:border-blue-400',
-                    };
-                    const iconBg: Record<string, string> = {
-                      emerald: isActive ? 'bg-emerald-500' : 'bg-slate-100 dark:bg-zinc-800',
-                      indigo: isActive ? 'bg-indigo-500' : 'bg-slate-100 dark:bg-zinc-800',
-                      amber: isActive ? 'bg-amber-500' : 'bg-slate-100 dark:bg-zinc-800',
-                      blue: isActive ? 'bg-blue-500' : 'bg-slate-100 dark:bg-zinc-800',
-                    };
-                    const textColor: Record<string, string> = {
-                      emerald: isActive ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-zinc-400',
-                      indigo: isActive ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-600 dark:text-zinc-400',
-                      amber: isActive ? 'text-amber-700 dark:text-amber-300' : 'text-slate-600 dark:text-zinc-400',
-                      blue: isActive ? 'text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-zinc-400',
-                    };
                     return (
                       <button
                         key={key}
                         type="button"
                         onClick={() => handleServiceChange(key, 'active', !isActive)}
-                        className={`relative flex items-center gap-2 p-2 rounded-lg border-2 transition-all ${colorClasses[config.color]}`}
+                        className={`flex items-center gap-3 p-3 bg-white dark:bg-zinc-950 rounded-xl transition-all w-full text-left ${isActive
+                            ? `border border-${config.color}-200 dark:border-${config.color}-900/30 shadow-sm shadow-${config.color}-500/10`
+                            : 'border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 opacity-60 hover:opacity-100 grayscale hover:grayscale-0'
+                          }`}
                       >
-                        <div className={`p-1.5 rounded ${iconBg[config.color]}`}>
-                          <config.icon size={14} strokeWidth={1.5} className={isActive ? 'text-white' : 'text-slate-400'} />
+                        <div className={`w-2 h-10 rounded-full shrink-0 transition-colors ${isActive ? `bg-${config.color}-400` : 'bg-slate-300 dark:bg-zinc-700'}`}></div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-[10px] font-bold uppercase mb-0.5 ${isActive ? `text-${config.color}-600 dark:text-${config.color}-400` : 'text-slate-500'}`}>
+                            Módulo
+                          </p>
+                          <p className={`text-sm font-semibold truncate ${isActive ? 'text-slate-800 dark:text-zinc-200' : 'text-slate-500'}`}>
+                            {config.shortLabel}
+                          </p>
                         </div>
-                        <span className={`text-xs font-semibold ${textColor[config.color]}`}>
-                          {config.shortLabel}
-                        </span>
-                        {isActive && <CheckCircle2 size={10} className={`absolute top-0.5 right-0.5 text-${config.color}-500`} />}
+                        {isActive ? (
+                          <CheckCircle2 size={18} className={`text-${config.color}-500 shrink-0`} />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-zinc-700 shrink-0"></div>
+                        )}
                       </button>
                     );
                   })}
@@ -333,7 +279,9 @@ export const NewAffiliationPage = ({ onCancel, onSuccess }: NewAffiliationPagePr
               <div className="bg-white dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-800 p-4">
                 {activeServices.length === 0 ? (
                   <div className="text-center py-6">
-                    <p className="text-slate-400 dark:text-zinc-500 text-sm">Activa un servicio para configurar las entidades y fechas de cobertura</p>
+                    <p className="text-slate-500 dark:text-zinc-400 mt-1">
+                      Completa la información para registrar una nueva afiliación. La cobertura iniciará a partir de hoy.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">

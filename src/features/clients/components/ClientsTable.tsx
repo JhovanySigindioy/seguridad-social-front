@@ -111,6 +111,7 @@ export const ClientsTable = () => {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50">
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">#</th>
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Cliente</th>
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Identificación</th>
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Email</th>
@@ -122,7 +123,7 @@ export const ClientsTable = () => {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i} className="border-b border-slate-50 dark:border-zinc-800/60">
-                  {Array.from({ length: 5 }).map((_, j) => (
+                  {Array.from({ length: 6 }).map((_, j) => (
                     <td key={j} className="px-4 py-3.5">
                       <div className="h-3 bg-slate-100 dark:bg-zinc-800 rounded-full animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
                     </td>
@@ -131,7 +132,7 @@ export const ClientsTable = () => {
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-20 text-slate-400">
+                <td colSpan={6} className="text-center py-20 text-slate-400">
                   <UserCircle size={40} className="mx-auto mb-3 opacity-30" />
                   <p>No se encontraron clientes</p>
                 </td>
@@ -146,6 +147,9 @@ export const ClientsTable = () => {
                     transition={{ delay: index * 0.03, duration: 0.2 }}
                     className="border-b border-slate-50 dark:border-zinc-800/60 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors"
                   >
+                    <td className="px-4 py-3.5 text-xs text-slate-400 font-medium">
+                      {(currentPage - 1) * itemsPerPage + index + 1}
+                    </td>
                     <td className="px-4 py-3.5">
                       <p className="font-semibold text-slate-800 dark:text-zinc-200">
                         {client.first_name} {client.second_name} {client.first_lastname} {client.second_lastname}

@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Building, Heart, Shield, Landmark, CheckCircle2 } from 'lucide-react';
+import { X, Save, Building, Heart, Shield, Landmark, CheckCircle2, Calendar } from 'lucide-react';
 import { useAffiliationFormData, useUpdateAffiliation } from '../hooks/useAffiliations';
 import { useToast } from '../../../components/Toast';
 import type { AffiliationItem } from '../types/affiliation.types';
@@ -18,27 +18,10 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
 
   const [clientId, setClientId] = useState('');
   const [companyId, setCompanyId] = useState('');
-  const getCurrentMonth = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  };
+  const [govRecordAt, setGovRecordAt] = useState('');
+  const [createdAt, setCreatedAt] = useState('');
 
-  const [coverageMonth, setCoverageMonth] = useState(getCurrentMonth());
 
-  const { startDate, endDate } = useMemo(() => {
-    const [yearStr, monthStr] = coverageMonth.split('-');
-    const start = new Date(Number(yearStr), Number(monthStr) - 1, 1);
-    const end = new Date(Number(yearStr), Number(monthStr), 0); // last day of month
-    
-    const formatLocal = (d: Date) => {
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
-    
-    return {
-      startDate: formatLocal(start),
-      endDate: formatLocal(end)
-    };
-  }, [coverageMonth]);
   const [hasEps, setHasEps] = useState(false);
   const [hasArl, setHasArl] = useState(false);
   const [hasCcf, setHasCcf] = useState(false);
@@ -64,18 +47,19 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
       setIsAutoRenewed(Boolean(affiliation.is_auto_renewed));
       setObservation(affiliation.observation || '');
 
-      // Set coverage month based on start_date
-      if (affiliation.start_date) {
-        try {
-          const d = new Date(affiliation.start_date);
-          // Get local year and month
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          setCoverageMonth(`${y}-${m}`);
-        } catch {
-          // ignore
-        }
+      if (affiliation.gov_record_at) {
+        setGovRecordAt(affiliation.gov_record_at.split('T')[0]);
+      } else {
+        setGovRecordAt('');
       }
+
+      if (affiliation.created_at) {
+        setCreatedAt(affiliation.created_at.split('T')[0]);
+      } else {
+        setCreatedAt('');
+      }
+
+
 
       const hasEpsVal = affiliation.eps_name && affiliation.eps_name !== '—';
       const hasArlVal = affiliation.arl_name && affiliation.arl_name !== '—';
@@ -125,8 +109,10 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
         company_id: Number(companyId),
         value: Number(value),
         payment_method: method || null,
-        start_date: startDate || null,
-        end_date: endDate || null,
+        start_date: affiliation?.start_date ? affiliation.start_date.split('T')[0] : null,
+        end_date: affiliation?.end_date ? affiliation.end_date.split('T')[0] : null,
+        gov_record_at: govRecordAt || null,
+        created_at: createdAt || null,
         eps_id: hasEps ? Number(epsId) : null,
         arl_id: hasArl ? Number(arlId) : null,
         ccf_id: hasCcf ? Number(ccfId) : null,
@@ -145,20 +131,29 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
     }
   };
 
-  const ServiceCard = ({ active, onChange, icon: Icon, label, color }: any) => (
+  const ServiceCard = ({ active, onChange, label, color }: any) => (
     <button
       type="button"
       onClick={() => onChange(!active)}
-      className={`relative overflow-hidden flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${active
-          ? `border-${color}-500 bg-${color}-50 dark:bg-${color}-900/20 shadow-md`
-          : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-600'
+      className={`flex items-center gap-3 p-3 bg-white dark:bg-zinc-950 rounded-xl transition-all w-full text-left ${active
+          ? `border border-${color}-200 dark:border-${color}-900/30 shadow-sm shadow-${color}-500/10`
+          : 'border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 opacity-60 hover:opacity-100 grayscale hover:grayscale-0'
         }`}
     >
-      <div className={`p-2 rounded-lg mb-2 ${active ? `bg-${color}-500 text-white` : 'bg-slate-100 dark:bg-zinc-800 text-slate-400'}`}>
-        <Icon size={20} strokeWidth={1.5} />
+      <div className={`w-2 h-10 rounded-full shrink-0 transition-colors ${active ? `bg-${color}-400` : 'bg-slate-300 dark:bg-zinc-700'}`}></div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-[10px] font-bold uppercase mb-0.5 ${active ? `text-${color}-600 dark:text-${color}-400` : 'text-slate-500'}`}>
+          Módulo
+        </p>
+        <p className={`text-sm font-semibold truncate ${active ? 'text-slate-800 dark:text-zinc-200' : 'text-slate-500'}`}>
+          {label}
+        </p>
       </div>
-      <span className={`text-xs font-semibold ${active ? `text-${color}-700 dark:text-${color}-300` : 'text-slate-600 dark:text-zinc-400'}`}>{label}</span>
-      {active && <CheckCircle2 size={14} className={`absolute top-2 right-2 text-${color}-500`} />}
+      {active ? (
+        <CheckCircle2 size={18} className={`text-${color}-500 shrink-0`} />
+      ) : (
+        <div className="w-4 h-4 rounded-full border-2 border-slate-300 dark:border-zinc-700 shrink-0"></div>
+      )}
     </button>
   );
 
@@ -240,23 +235,34 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
                   </div>
                 ) : (
                   <>
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-600 dark:text-indigo-400"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                            <Calendar size={16} className="text-indigo-600 dark:text-indigo-400" />
+                          </div>
+                          <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">Fecha Pago Recibido</span>
                         </div>
-                        <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">Mes de Cobertura</span>
-                      </div>
-                      <div className="flex gap-4 items-center">
                         <input
-                          type="month"
-                          value={coverageMonth}
-                          onChange={e => setCoverageMonth(e.target.value)}
-                          className="w-1/2 p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                          type="date"
+                          value={createdAt}
+                          onChange={e => setCreatedAt(e.target.value)}
+                          className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
                         />
-                        <div className="w-1/2 flex items-center px-4 p-2.5 text-xs text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-xl">
-                          Vigencia: {startDate} al {endDate}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                            <Calendar size={16} className="text-indigo-600 dark:text-indigo-400" />
+                          </div>
+                          <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">Fecha de Pago</span>
                         </div>
+                        <input
+                          type="date"
+                          value={govRecordAt}
+                          onChange={e => setGovRecordAt(e.target.value)}
+                          className="w-full p-2.5 text-sm bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl focus:border-indigo-500 outline-none text-slate-800 dark:text-zinc-200"
+                        />
                       </div>
                     </div>
 

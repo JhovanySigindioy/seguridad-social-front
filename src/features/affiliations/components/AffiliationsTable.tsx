@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, Eye, UserPlus, Trash2 } from 'lucide-react';
+import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, UserPlus, Trash2, Download, Loader2 } from 'lucide-react';
+import api from '../../../services/api/axios-instance';
 import { useAffiliations, useUpdateAffiliationStatus } from '../hooks/useAffiliations';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { PAYMENT_STATUSES, type AffiliationItem, type PaymentStatus } from '../types/affiliation.types';
@@ -56,10 +57,9 @@ const formatDate = (value?: string | null) => {
 interface AffiliationsTableProps {
   onNewAffiliation?: () => void;
   defaultTab?: 'activas' | 'inactivas';
-  hideTabs?: boolean;
 }
 
-export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas', hideTabs = false }: AffiliationsTableProps) => {
+export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: AffiliationsTableProps) => {
   const currentDate = new Date();
   const [filterMonth, setFilterMonth] = useState<number>(currentDate.getMonth() + 1);
   const [filterYear, setFilterYear] = useState<number>(currentDate.getFullYear());
@@ -72,8 +72,9 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas', hi
   const [sortField, setSortField] = useState<string>('id');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [closingItem, setClosingItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<AffiliationItem | null>(null);
+  const [closingItem, setClosingItem] = useState<AffiliationItem | null>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -82,15 +83,14 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas', hi
   const canChangeStatus = allowedStatusOptions.length > 0;
   const isOfficeManager = user?.role === 'office_manager';
 
-  const [activeTab, setActiveTab] = useState<'activas' | 'inactivas'>(defaultTab);
 
   const filtered = useMemo(() => {
     if (!affiliations) return [];
     return affiliations
       .filter(a => {
         const isInactive = a.status === 'Inactivo';
-        if (activeTab === 'activas' && isInactive) return false;
-        if (activeTab === 'inactivas' && !isInactive) return false;
+        if (defaultTab === 'activas' && isInactive) return false;
+        if (defaultTab === 'inactivas' && !isInactive) return false;
 
         const matchSearch =
           a.client_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -105,7 +105,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas', hi
         if (a[sortField] > b[sortField]) return 1 * dir;
         return 0;
       });
-  }, [affiliations, search, statusFilter, sortField, sortDir, activeTab]);
+  }, [affiliations, search, statusFilter, sortField, sortDir, defaultTab]);
 
   const handleSort = (field: string) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -179,43 +179,32 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas', hi
     </div>
   );
 
-  const getAffiliationStatus = (item: AffiliationItem) => {
-    if (item.status === 'Inactivo') {
-      return { label: 'Retirada', className: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' };
+  const handleDownloadInvoice = async (item: AffiliationItem) => {
+    try {
+      setDownloadingId(item.id);
+      const response = await api.get(`/affiliations/${item.id}/invoice`, {
+        params: { month: filterMonth, year: filterYear },
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `factura-${filterYear}-${String(filterMonth).padStart(2, '0')}-${item.id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      // Opcional: Mostrar toast de error si tienes useToast en este componente
+    } finally {
+      setDownloadingId(null);
     }
-    if (item.status === 'Activo') {
-      return { label: 'Activa', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' };
-    }
-    return { label: 'Desconocido', className: 'bg-slate-100 text-slate-500' };
   };
+
+
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Tabs */}
-      {!hideTabs && (
-        <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 rounded-xl p-1 border border-slate-100 dark:border-zinc-800 self-start">
-          <button
-            onClick={() => { setActiveTab('activas'); setCurrentPage(1); }}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
-              activeTab === 'activas' 
-                ? 'bg-indigo-600 text-white shadow-md' 
-                : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
-            }`}
-          >
-            Activas
-          </button>
-          <button
-            onClick={() => { setActiveTab('inactivas'); setCurrentPage(1); }}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
-              activeTab === 'inactivas' 
-                ? 'bg-red-500 text-white shadow-md' 
-                : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800'
-            }`}
-          >
-            Retiradas
-          </button>
-        </div>
-      )}
 
       {/* Toolbar: Search + Filters + Nueva Afiliación button */}
       <div className="flex flex-col sm:flex-row gap-3 items-center sm:items-center">
@@ -311,13 +300,13 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas', hi
           <thead>
             <tr className="border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50">
               {[
+                { label: '#', field: '' },
                 { label: 'Cliente', field: 'client_name' },
                 { label: 'Empresa', field: 'company_name' },
                 { label: 'Oficina', field: 'office_name', hideForManager: true },
                 { label: 'Transacción', field: 'gov_record_at' },
                 { label: 'Servicios', field: 'eps_name' },
                 { label: 'Valor', field: 'value' },
-                { label: 'Estado', field: 'status' },
                 { label: 'Pago', field: 'payment_status' },
                 { label: 'Observaciones', field: 'observation' },
                 { label: 'Acciones', field: '' },
@@ -360,8 +349,15 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas', hi
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: Math.min(index * 0.02, 0.15), duration: 0.15 }}
-                    className="border-b border-slate-50 dark:border-zinc-800/60 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group"
+                    className={`border-b border-slate-50 dark:border-zinc-800/60 transition-colors group ${
+                      defaultTab === 'inactivas'
+                        ? 'bg-red-50/40 hover:bg-red-100/60 dark:bg-red-900/10 dark:hover:bg-red-900/20'
+                        : 'hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10'
+                    }`}
                   >
+                    <td className="px-4 py-3.5 text-xs text-slate-400 font-medium">
+                      {(currentPage - 1) * itemsPerPage + index + 1}
+                    </td>
                     <td className="px-4 py-3.5">
                       <div>
                         <p className="font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{item.client_name}</p>
@@ -398,22 +394,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas', hi
                         ${Number(item.value).toLocaleString('es-CO')}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex flex-col gap-1 items-start">
-                        {(() => {
-                          const affStatus = getAffiliationStatus(item);
-                          return (
-                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${affStatus.className}`}>
-                              {affStatus.label}
-                            </span>
-                          );
-                        })()}
-                        <div className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium leading-tight mt-0.5">
-                           <p>Ini: {formatDate(item.start_date)}</p>
-                           <p>Fin: {item.end_date ? formatDate(item.end_date) : 'N/A'}</p>
-                        </div>
-                      </div>
-                    </td>
+
                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
                       {(() => {
                         const currentPaymentStatus = item.payment_status;
@@ -452,19 +433,20 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas', hi
                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setSelectedItem(item)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-                          title="Ver detalles"
-                        >
-                          <Eye size={15} />
-                        </button>
-                        <button
                           onClick={() => item.status !== 'Inactivo' && setEditingItem(item)}
                           disabled={item.status === 'Inactivo'}
                           className={`p-1.5 rounded-lg transition-colors ${item.status === 'Inactivo' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'}`}
                           title={item.status === 'Inactivo' ? 'Afiliación inactiva, no editable' : 'Editar afiliación'}
                         >
                           <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDownloadInvoice(item)}
+                          disabled={downloadingId === item.id || item.payment_status !== 'Pagado'}
+                          className={`p-1.5 rounded-lg transition-colors ${item.payment_status !== 'Pagado' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'} ${downloadingId === item.id ? 'opacity-50 cursor-wait' : ''}`}
+                          title={item.payment_status !== 'Pagado' ? 'Solo disponible si el estado es Pagado' : 'Descargar Factura'}
+                        >
+                          {downloadingId === item.id ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
                         </button>
                         <button
                           onClick={() => item.status !== 'Inactivo' && setClosingItem(item)}

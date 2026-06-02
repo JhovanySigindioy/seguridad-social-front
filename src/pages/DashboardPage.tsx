@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, LogOut,
-  Building2, Menu, X, Sun, Moon, Bell, Calendar,
-  TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus, UserMinus,
+  Building2, Menu, X, Sun, Moon, Bell,
+  TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus,
   BarChart3, Target
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
@@ -23,14 +23,18 @@ import { MonthYearSelector } from '../components/MonthYearSelector';
 // ─── Nav Items ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
   { id: 'dashboard',    label: 'Dashboard',   icon: LayoutDashboard },
-  { id: 'affiliations', label: 'Afiliaciones', icon: Users },
-  { id: 'daily-report', label: 'Reporte Diario', icon: Calendar },
+  { 
+    id: 'affiliations-menu', 
+    label: 'Afiliaciones', 
+    icon: Users,
+    subItems: [
+      { id: 'affiliations', label: 'Listado General' },
+      { id: 'daily-report', label: 'Reporte Diario' },
+      { id: 'retired',      label: 'Retirados' }
+    ]
+  },
   { id: 'clients',      label: 'Clientes',     icon: UserPlus },
-  { id: 'retired',      label: 'Retirados',    icon: UserMinus },
-  // { id: 'companies',    label: 'Empresas',     icon: Building2 },
   { id: 'reports',      label: 'Reportes',     icon: BarChart3, adminOnly: true },
-  // { id: 'billing',      label: 'Facturación',  icon: FileText },
-  // { id: 'settings',     label: 'Configuración', icon: Settings },
 ];
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -70,16 +74,39 @@ const StatCard = ({
 
 // ─── Mini Trend Chart ─────────────────────────────────────────────────────────
 const MiniTrendChart = ({ data }: { data: { month: string; value: number }[] }) => {
-  const max = Math.max(...data.map(d => d.value), 1);
+  const values = data.map(d => d.value);
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values);
+  
+  // Start the y-axis at slightly below the minimum value to exaggerate the differences and show the trend clearly
+  const base = max === min ? 0 : min * 0.85;
+  const range = max - base;
+  
+  const formatValue = (val: number) => {
+    if (val === 0) return '';
+    if (val >= 1000000) return (val / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (val >= 1000) return (val / 1000).toFixed(0) + 'k';
+    return val.toString();
+  };
+
   return (
-    <div className="flex items-end gap-1 h-16">
+    <div className="flex items-end gap-1 h-20 pt-2">
       {data.map((d, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+        <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 group relative h-full">
+          {/* Tooltip on hover for full value */}
+          <div className="absolute -top-7 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+            ${d.value.toLocaleString('es-CO')}
+          </div>
+          
           <div 
-            className="w-full bg-indigo-200 dark:bg-indigo-800 rounded-t transition-all hover:bg-indigo-300 dark:hover:bg-indigo-700"
-            style={{ height: `${(d.value / max) * 56}px` }}
-          />
-          <span className="text-[8px] text-slate-400 dark:text-zinc-500 truncate">{d.month}</span>
+            className="w-full flex flex-col justify-center items-center bg-indigo-200 dark:bg-indigo-800 rounded-t transition-all group-hover:bg-indigo-300 dark:group-hover:bg-indigo-700 overflow-hidden"
+            style={{ height: `${d.value === 0 ? 0 : Math.max(((d.value - base) / range) * 56, 16)}px` }}
+          >
+            <span className="text-[9px] font-bold text-indigo-700 dark:text-indigo-200">
+              {formatValue(d.value)}
+            </span>
+          </div>
+          <span className="text-[10px] font-medium text-slate-500 dark:text-zinc-400 truncate mt-1">{d.month}</span>
         </div>
       ))}
     </div>
@@ -186,7 +213,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
   const stats = useMemo(() => {
     if (!dashboardStats) return {
       total: 0, paid: 0, pending: 0, inProcess: 0,
-      overdue: 0, overdueValue: 0, expiringSoon: 0, expiringValue: 0
+      overdue: 0, overdueValue: 0, currentRevenueTotal: 0, currentRevenuePaid: 0
     };
     return {
       total: dashboardStats.currentMonth.total,
@@ -195,8 +222,8 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
       inProcess: dashboardStats.currentMonth.inProcess,
       overdue: dashboardStats.overdue.count,
       overdueValue: dashboardStats.overdue.value,
-      expiringSoon: dashboardStats.expiringSoon.count,
-      expiringValue: dashboardStats.expiringSoon.value,
+      currentRevenueTotal: dashboardStats.currentMonthRevenue?.total || 0,
+      currentRevenuePaid: dashboardStats.currentMonthRevenue?.paid || 0,
     };
   }, [dashboardStats]);
 
@@ -221,13 +248,17 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
     }));
   }, [dashboardStats]);
 
-  // Recent: Only Activo, sorted by created_at
+  // Recent: Only Activo and created in the selected month
   const displayedAffiliations = useMemo(() => {
     return filteredAffiliations
-      .filter((a: any) => a.status === 'Activo')
+      .filter((a: any) => {
+        if (a.status !== 'Activo') return false;
+        const createdAt = new Date(a.created_at);
+        return (createdAt.getMonth() + 1) === targetMonth && createdAt.getFullYear() === targetYear;
+      })
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 8);
-  }, [filteredAffiliations]);
+  }, [filteredAffiliations, targetMonth, targetYear]);
 
   const displayOfficeName = useMemo(() => {
     if (!isAdmin && activeOfficeId) {
@@ -286,43 +317,48 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
           </div>
           <div>
             <h2 className="text-xl font-black text-slate-800 dark:text-zinc-100 uppercase tracking-tight">
-              Meta de Afiliaciones
+              Meta del Mes: {targetGoal} Afiliaciones
             </h2>
             <p className="text-sm font-medium text-slate-500 dark:text-zinc-400 mt-1">
-              Progreso actual: <span className="text-blue-600 dark:text-blue-400 font-bold">{stats.total}</span> de <span className="font-bold">{targetGoal}</span> afiliaciones
+              Se han registrado <span className="text-blue-600 dark:text-blue-400 font-bold">{stats.total}</span> afiliaciones
             </p>
           </div>
         </div>
 
-        <div className="relative z-10 w-full md:w-auto flex items-center gap-5">
-          <div className="flex-1 md:w-48 lg:w-64 h-3.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden shadow-inner">
-            <motion.div 
-              className="h-full bg-blue-500 dark:bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
-              initial={{ width: 0 }}
-              animate={{ width: `${isLoading ? 0 : Math.min(100, completionPercentage)}%` }}
-              transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
-            />
+        <div className="relative z-10 w-full md:w-auto flex flex-col md:items-end gap-1">
+          <div className="flex items-center gap-5 w-full">
+            <div className="flex-1 md:w-48 lg:w-64 h-3.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden shadow-inner">
+              <motion.div 
+                className="h-full bg-blue-500 dark:bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
+                initial={{ width: 0 }}
+                animate={{ width: `${isLoading ? 0 : Math.min(100, completionPercentage)}%` }}
+                transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+              />
+            </div>
+            <div className="flex flex-col items-end min-w-[4rem]">
+              <span className="text-3xl font-black text-blue-600 dark:text-blue-400 leading-none">
+                {isLoading ? '…' : completionPercentage}%
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col items-end min-w-[4rem]">
-            <span className="text-3xl font-black text-blue-600 dark:text-blue-400 leading-none">
-              {isLoading ? '…' : completionPercentage}%
-            </span>
-          </div>
+          <span className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider text-right w-full">
+            Porcentaje de Cumplimiento
+          </span>
         </div>
       </motion.div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Total" value={isLoading ? '…' : stats.total}
+        <StatCard label="Nuevas Afiliaciones" value={isLoading ? '…' : stats.total}
           icon={TrendingUp} bg="bg-indigo-100 dark:bg-indigo-900/30"
           iconColor="text-indigo-600 dark:text-indigo-400" delay={0.05} />
-        <StatCard label="Pagadas" value={isLoading ? '…' : stats.paid}
+        <StatCard label="Pagas (Nuevas)" value={isLoading ? '…' : stats.paid}
           icon={CheckCircle2} bg="bg-emerald-100 dark:bg-emerald-900/30"
           iconColor="text-emerald-600 dark:text-emerald-400" delay={0.1} />
-        <StatCard label="En Proceso" value={isLoading ? '…' : stats.inProcess}
+        <StatCard label="En Proceso (Nuevas)" value={isLoading ? '…' : stats.inProcess}
           icon={Clock} bg="bg-blue-100 dark:bg-blue-900/30"
           iconColor="text-blue-600 dark:text-blue-400" delay={0.15} />
-        <StatCard label="Pendientes" value={isLoading ? '…' : stats.pending}
+        <StatCard label="Pendientes (Nuevas)" value={isLoading ? '…' : stats.pending}
           icon={AlertCircle} bg="bg-amber-100 dark:bg-amber-900/30"
           iconColor="text-amber-600 dark:text-amber-400" delay={0.2} />
       </div>
@@ -333,7 +369,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
         <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-slate-100 dark:border-zinc-800 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300">Tendencia de Ingresos</h3>
-            <span className="text-xs text-slate-400 dark:text-zinc-500">Últimos 3 meses</span>
+            <span className="text-xs text-slate-400 dark:text-zinc-500">Últimos 6 meses</span>
           </div>
           {trendData.length > 0 ? (
             <MiniTrendChart data={trendData} />
@@ -344,22 +380,24 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
           )}
         </div>
 
-        {/* Próximas a Vencer */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-amber-200 dark:border-amber-800/50 shadow-sm">
+        {/* Ingresos del Mes */}
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-emerald-200 dark:border-emerald-800/50 shadow-sm flex flex-col justify-center">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300">Próximas a Vencer</h3>
-            <span className="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-bold">
-              {isLoading ? '…' : stats.expiringSoon}
-            </span>
+            <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300">Ingresos del Mes</h3>
           </div>
           <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
-            Vencen en los próximos 5 días
+            Dinero generado en el mes actual
           </p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
-              ${isLoading ? '…' : (stats.expiringValue / 1000000).toFixed(1)}M
-            </span>
-            <span className="text-xs text-slate-400 dark:text-zinc-500">en juego</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
+                ${isLoading ? '…' : stats.currentRevenuePaid.toLocaleString('es-CO')}
+              </span>
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">recaudado</span>
+            </div>
+            <div className="text-xs text-slate-400 dark:text-zinc-500">
+              de ${(isLoading ? 0 : stats.currentRevenueTotal).toLocaleString('es-CO')} proyectados
+            </div>
           </div>
         </div>
       </div>
@@ -369,7 +407,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-zinc-800">
           <div className="flex items-center gap-2">
             <Users size={16} className="text-indigo-600 dark:text-indigo-400" />
-            <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300">Afiliaciones Recientes</h3>
+            <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300">Nuevas Afiliaciones del Mes</h3>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -446,26 +484,34 @@ const Sidebar = ({
   const currentOffice = offices?.find(o => o.id === activeOfficeId);
   const logoUrl = currentOffice?.logo_url || user?.agency_logo_url;
 
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
+    'affiliations-menu': ['affiliations', 'daily-report', 'retired'].includes(activeTab)
+  });
+
+  const toggleMenu = (id: string) => {
+    setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   return (
     <aside className="w-64 h-full bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col">
       {/* Logo */}
-      <div className=" flex items-center justify-center border-b border-slate-100 dark:border-zinc-800">
-        <div className="flex flex-col mb-1">
+      <div className="flex relative items-center justify-center py-6 px-4 border-b border-slate-100 dark:border-zinc-800">
+        <div className="flex flex-col items-center justify-center text-center">
           {logoUrl ? (
-            <img src={logoUrl} alt="Logo" className="w-full h-25 object-contain" />
+            <img src={logoUrl} alt="Logo" className="w-full max-h-24 object-contain mb-3" />
           ) : (
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-lg flex items-center justify-center shadow flex-shrink-0">
-              <Users size={15} className="text-white" />
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-lg flex items-center justify-center shadow flex-shrink-0 mb-3">
+              <Users size={18} className="text-white" />
             </div>
           )}
-          <span className="text-lg font-bold text-slate-900 dark:text-white">
+          <span className="text-[15px] leading-tight font-bold text-slate-900 dark:text-white">
             {currentOffice ? currentOffice.name : 'Construvida AYJ'}
           </span>
         </div>
         {isMobile && (
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400"
+            className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400"
           >
             <X size={18} />
           </button>
@@ -483,6 +529,62 @@ const Sidebar = ({
       {/* Nav */}
       <nav className="flex-1 px-3 mt-4 space-y-1 overflow-y-auto">
         {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map(item => {
+          if (item.subItems) {
+            const isOpen = openMenus[item.id];
+            const hasActiveChild = item.subItems.some(sub => sub.id === activeTab);
+            return (
+              <div key={item.id} className="space-y-1">
+                <button
+                  onClick={() => toggleMenu(item.id)}
+                  className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    hasActiveChild && !isOpen
+                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400'
+                      : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <item.icon size={17} />
+                    {item.label}
+                  </span>
+                  <ChevronRight size={14} className={`transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pl-9 pr-2 py-1 space-y-1">
+                        {item.subItems.map(sub => {
+                          const active = activeTab === sub.id;
+                          return (
+                            <button
+                              key={sub.id}
+                              onClick={() => { onTabChange(sub.id); onClose(); }}
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                active
+                                  ? sub.id === 'retired'
+                                    ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
+                                    : 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                                  : sub.id === 'retired'
+                                    ? 'text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                                    : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
+                              }`}
+                            >
+                              {sub.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          }
+
           const active = activeTab === item.id;
           return (
             <button
@@ -498,7 +600,6 @@ const Sidebar = ({
                 <item.icon size={17} />
                 {item.label}
               </span>
-              {active && <ChevronRight size={14} />}
             </button>
           );
         })}
@@ -554,7 +655,7 @@ export const DashboardPage = ({ tab }: DashboardPageProps = {}) => {
       case 'daily-report': return <DailyReportPage />;
       case 'new-affiliation': return <NewAffiliationPage onCancel={() => setActiveTab('affiliations')} onSuccess={() => setActiveTab('affiliations')} />;
       case 'clients': return <ClientsPage />;
-      case 'retired': return <AffiliationsTable defaultTab="inactivas" hideTabs={true} />;
+      case 'retired': return <AffiliationsTable defaultTab="inactivas" />;
       case 'companies': return <ComingSoon label="Módulo de Empresas" />;
       case 'reports': return isAdmin ? <ReportsPage /> : <DashboardHome user={user} activeOfficeId={activeOfficeId} />;
       case 'billing':   return <ComingSoon label="Módulo de Facturación" />;

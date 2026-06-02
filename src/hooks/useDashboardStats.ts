@@ -12,9 +12,9 @@ export interface DashboardStatsResponse {
     count: number;
     value: number;
   };
-  expiringSoon: {
-    count: number;
-    value: number;
+  currentMonthRevenue: {
+    total: number;
+    paid: number;
   };
   trendData: {
     month: number;
