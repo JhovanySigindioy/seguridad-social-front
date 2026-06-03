@@ -395,7 +395,25 @@ const ComparativaMensual = ({
   if (isLoading) {
     return <div className="animate-pulse space-y-4"><div className="h-64 bg-slate-100 dark:bg-zinc-800 rounded-2xl" /></div>;
   }
-  
+
+  if (monthlyData.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Comparativa Mensual</h2>
+            <p className="text-sm text-slate-500 dark:text-zinc-400">No hay datos disponibles para comparar.</p>
+          </div>
+          <MonthYearSelector
+            month={targetMonth}
+            year={targetYear}
+            onChange={(m, y) => { setTargetMonth(m); setTargetYear(y); }}
+          />
+        </div>
+      </div>
+    );
+  }
+   
   const currentMonth = monthlyData[monthlyData.length - 1];
   const prevMonth = monthlyData[monthlyData.length - 2];
   const revenueChange = prevMonth && prevMonth.revenue > 0 ? ((currentMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100 : 0;
