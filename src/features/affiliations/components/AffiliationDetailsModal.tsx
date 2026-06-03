@@ -20,6 +20,10 @@ const formatDate = (value?: string | null) => {
   return `${year}/${month}/${day} ${hours}:${minutes}`;
 };
 
+const formatPhones = (phone1?: string | null, phone2?: string | null) => {
+  return [phone1, phone2].filter(Boolean).join(' / ') || 'Sin telefono';
+};
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -90,6 +94,7 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
                   <div className="bg-slate-50 dark:bg-zinc-900/50 p-4 rounded-2xl border border-slate-100 dark:border-zinc-800">
                     <p className="font-bold text-slate-800 dark:text-zinc-200">{data.client_name}</p>
                     <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">CC: {data.client_identification}</p>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Tel: {formatPhones(data.client_phone_1, data.client_phone_2)}</p>
                   </div>
                 </div>
                 <div>

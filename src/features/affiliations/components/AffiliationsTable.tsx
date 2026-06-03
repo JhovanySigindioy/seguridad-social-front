@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, UserPlus, Trash2, Download, Loader2 } from 'lucide-react';
+import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, UserPlus, Trash2, Download, Loader2, Copy, CheckCircle2 } from 'lucide-react';
 import api from '../../../services/api/axios-instance';
 import { useAffiliations, useUpdateAffiliationStatus } from '../hooks/useAffiliations';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -9,6 +9,7 @@ import { StatusBadge } from './StatusBadge';
 import { AffiliationDetailsModal } from './AffiliationDetailsModal';
 import { EditAffiliationModal } from './EditAffiliationModal';
 import { CloseAffiliationModal } from './CloseAffiliationModal';
+import { useClients } from '../../clients/hooks/useClients';
 
 const STATUS_STYLES: Record<PaymentStatus, {
   dot: string;
@@ -54,6 +55,48 @@ const formatDate = (value?: string | null) => {
   }).format(date);
 };
 
+const formatPhones = (phone1?: string | null, phone2?: string | null) => {
+  return [phone1, phone2].filter(Boolean).join(' / ') || 'Sin telefono';
+};
+
+const copyText = async (text: string) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+};
+
+const normalizeWhatsAppPhone = (phone?: string | null) => {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('57') && digits.length >= 12) return digits;
+  if (digits.length === 10) return `57${digits}`;
+  return digits;
+};
+
+const getAffiliationWhatsAppUrl = (item: AffiliationItem, phone?: string | null) => {
+  const normalizedPhone = normalizeWhatsAppPhone(phone);
+  if (!normalizedPhone) return '';
+
+  const signature = item.office_name || 'Seguridad Social';
+  const message = `Hola, ${item.client_name}. Queremos recordarle que su afiliacion a seguridad social esta proxima a vencer.\n\nQueremos que siga protegido, asi que estamos listos para acompanarlo y ayudarle a renovarla de forma rapida y sin complicaciones. Escribanos por aqui y lo gestionamos juntos.\n\n${signature}`;
+  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+};
+
+const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
+  <img src="/img/whatsapp.png" alt="" aria-hidden="true" width={size} height={size} className="block object-contain" />
+);
+
 interface AffiliationsTableProps {
   onNewAffiliation?: () => void;
   defaultTab?: 'activas' | 'inactivas';
@@ -65,6 +108,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
   const [filterYear, setFilterYear] = useState<number>(currentDate.getFullYear());
 
   const { data: affiliations, isLoading, isError, refetch, isFetching } = useAffiliations(filterMonth, filterYear);
+  const { data: clients } = useClients();
   const { user } = useAuthStore();
   const updateStatus = useUpdateAffiliationStatus();
   const [search, setSearch] = useState('');
@@ -78,10 +122,23 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
   const [currentPage, setCurrentPage] = useState(1);
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [copiedPhoneId, setCopiedPhoneId] = useState<number | null>(null);
   const itemsPerPage = 8;
   const allowedStatusOptions = useMemo(() => getAllowedStatuses(user?.role), [user?.role]);
   const canChangeStatus = allowedStatusOptions.length > 0;
   const isOfficeManager = user?.role === 'office_manager';
+
+  const clientsById = useMemo(() => {
+    return new Map((clients || []).map(client => [client.id, client]));
+  }, [clients]);
+
+  const getItemPhones = (item: AffiliationItem) => {
+    const client = clientsById.get(item.client_id);
+    return {
+      phone1: item.client_phone_1 || client?.phone_1 || null,
+      phone2: item.client_phone_2 || client?.phone_2 || null,
+    };
+  };
 
 
   const filtered = useMemo(() => {
@@ -199,6 +256,15 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
     } finally {
       setDownloadingId(null);
     }
+  };
+
+  const handleCopyPhone = async (item: AffiliationItem) => {
+    const { phone1, phone2 } = getItemPhones(item);
+    const phone = phone1 || phone2;
+    if (!phone) return;
+    await copyText(phone);
+    setCopiedPhoneId(item.id);
+    window.setTimeout(() => setCopiedPhoneId(null), 1800);
   };
 
   const canDownloadInvoice = (status: AffiliationItem['payment_status']) => {
@@ -366,6 +432,26 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                       <div>
                         <p className="font-semibold text-slate-800 dark:text-zinc-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{item.client_name}</p>
                         <p className="text-xs text-slate-400 dark:text-zinc-500">{item.client_identification}</p>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">{formatPhones(getItemPhones(item).phone1, getItemPhones(item).phone2)}</span>
+                          <button
+                            onClick={() => handleCopyPhone(item)}
+                            disabled={!(getItemPhones(item).phone1 || getItemPhones(item).phone2)}
+                            className="rounded p-1 text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300 dark:hover:text-zinc-200 dark:disabled:text-zinc-700"
+                            title="Copiar telefono"
+                          >
+                            {copiedPhoneId === item.id ? <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={13} />}
+                          </button>
+                          {getAffiliationWhatsAppUrl(item, getItemPhones(item).phone1 || getItemPhones(item).phone2) ? (
+                            <a href={getAffiliationWhatsAppUrl(item, getItemPhones(item).phone1 || getItemPhones(item).phone2)} target="_blank" rel="noreferrer" className="rounded p-1" title="Enviar WhatsApp" aria-label="Enviar WhatsApp">
+                              <WhatsAppIcon size={16} />
+                            </a>
+                          ) : (
+                            <button disabled className="rounded p-1 opacity-30" title="Sin telefono" aria-label="WhatsApp no disponible">
+                              <WhatsAppIcon size={16} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-slate-600 dark:text-zinc-400 max-w-[180px] truncate">{item.company_name}</td>

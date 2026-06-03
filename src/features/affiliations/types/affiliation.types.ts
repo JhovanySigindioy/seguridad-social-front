@@ -12,6 +12,8 @@ export interface AffiliationItem {
   client_id: number;
   client_name: string;
   client_identification: string;
+  client_phone_1: string | null;
+  client_phone_2: string | null;
   company_id: number;
   company_name: string;
   start_date: string;

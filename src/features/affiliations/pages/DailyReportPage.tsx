@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calendar, Building2, RefreshCw, ChevronUp, ChevronDown,
-  AlertCircle, Eye, Pencil, FileText, Search,
+  AlertCircle, Eye, Pencil, FileText, Search, Copy, CheckCircle2,
 } from 'lucide-react';
 import { useDailyAffiliations, useUpdateAffiliationStatus } from '../hooks/useAffiliations';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -11,6 +11,7 @@ import { PAYMENT_STATUSES, type AffiliationItem, type PaymentStatus } from '../t
 import { StatusBadge } from '../components/StatusBadge';
 import { AffiliationDetailsModal } from '../components/AffiliationDetailsModal';
 import { EditAffiliationModal } from '../components/EditAffiliationModal';
+import { useClients } from '../../clients/hooks/useClients';
 
 const formatDate = (value?: string | null) => {
   if (!value) return 'Sin registrar';
@@ -20,6 +21,48 @@ const formatDate = (value?: string | null) => {
     day: '2-digit', month: 'short', year: 'numeric',
   }).format(date);
 };
+
+const formatPhones = (phone1?: string | null, phone2?: string | null) => {
+  return [phone1, phone2].filter(Boolean).join(' / ') || 'Sin telefono';
+};
+
+const copyText = async (text: string) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+};
+
+const normalizeWhatsAppPhone = (phone?: string | null) => {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('57') && digits.length >= 12) return digits;
+  if (digits.length === 10) return `57${digits}`;
+  return digits;
+};
+
+const getAffiliationWhatsAppUrl = (item: AffiliationItem, phone?: string | null) => {
+  const normalizedPhone = normalizeWhatsAppPhone(phone);
+  if (!normalizedPhone) return '';
+
+  const signature = item.office_name || 'Seguridad Social';
+  const message = `Hola, ${item.client_name}. Queremos recordarle que su afiliacion a seguridad social esta proxima a vencer.\n\nQueremos que siga protegido, asi que estamos listos para acompanarlo y ayudarle a renovarla de forma rapida y sin complicaciones. Escribanos por aqui y lo gestionamos juntos.\n\n${signature}`;
+  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+};
+
+const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
+  <img src="/img/whatsapp.png" alt="" aria-hidden="true" width={size} height={size} className="block object-contain" />
+);
 
 const today = () => new Date().toISOString().split('T')[0];
 
@@ -37,6 +80,7 @@ export const DailyReportPage = () => {
   }, [isAdmin, officeFilter]);
 
   const { data: affiliations, isLoading, isError, refetch, isFetching } = useDailyAffiliations(selectedDate, officeId);
+  const { data: clients } = useClients();
 
   const updateStatus = useUpdateAffiliationStatus();
 
@@ -47,7 +91,20 @@ export const DailyReportPage = () => {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [copiedPhoneId, setCopiedPhoneId] = useState<number | null>(null);
   const itemsPerPage = 10;
+
+  const clientsById = useMemo(() => {
+    return new Map((clients || []).map(client => [client.id, client]));
+  }, [clients]);
+
+  const getItemPhones = (item: AffiliationItem) => {
+    const client = clientsById.get(item.client_id);
+    return {
+      phone1: item.client_phone_1 || client?.phone_1 || null,
+      phone2: item.client_phone_2 || client?.phone_2 || null,
+    };
+  };
 
   // Group by office for summary
   const officeGroups = useMemo(() => {
@@ -123,6 +180,15 @@ export const DailyReportPage = () => {
       month: item.month || 1,
       year: item.year || new Date().getFullYear(),
     });
+  };
+
+  const handleCopyPhone = async (item: AffiliationItem) => {
+    const { phone1, phone2 } = getItemPhones(item);
+    const phone = phone1 || phone2;
+    if (!phone) return;
+    await copyText(phone);
+    setCopiedPhoneId(item.id);
+    window.setTimeout(() => setCopiedPhoneId(null), 1800);
   };
 
   return (
@@ -322,6 +388,26 @@ export const DailyReportPage = () => {
                           {item.client_name}
                         </p>
                         <p className="text-xs text-slate-400 dark:text-zinc-500">{item.client_identification}</p>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">{formatPhones(getItemPhones(item).phone1, getItemPhones(item).phone2)}</span>
+                          <button
+                            onClick={() => handleCopyPhone(item)}
+                            disabled={!(getItemPhones(item).phone1 || getItemPhones(item).phone2)}
+                            className="rounded p-1 text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300 dark:hover:text-zinc-200 dark:disabled:text-zinc-700"
+                            title="Copiar telefono"
+                          >
+                            {copiedPhoneId === item.id ? <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={13} />}
+                          </button>
+                          {getAffiliationWhatsAppUrl(item, getItemPhones(item).phone1 || getItemPhones(item).phone2) ? (
+                            <a href={getAffiliationWhatsAppUrl(item, getItemPhones(item).phone1 || getItemPhones(item).phone2)} target="_blank" rel="noreferrer" className="rounded p-1" title="Enviar WhatsApp" aria-label="Enviar WhatsApp">
+                              <WhatsAppIcon size={16} />
+                            </a>
+                          ) : (
+                            <button disabled className="rounded p-1 opacity-30" title="Sin telefono" aria-label="WhatsApp no disponible">
+                              <WhatsAppIcon size={16} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-zinc-400 max-w-[160px] truncate">
                         {item.company_name}

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, LogOut,
   Building2, Menu, X, Sun, Moon, Bell,
-  TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus,
+  TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus, Copy,
   BarChart3, Target
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
@@ -14,6 +14,7 @@ import { AffiliationsTable } from '../features/affiliations/components/Affiliati
 import { NewAffiliationPage } from '../features/affiliations/pages/newAffiliation';
 import { DailyReportPage } from '../features/affiliations/pages/DailyReportPage';
 import { ClientsPage } from '../features/clients/pages/ClientsPage';
+import { useClients } from '../features/clients/hooks/useClients';
 import { ReportsPage } from '../features/reports/pages/ReportsPage';
 import { useAffiliations } from '../features/affiliations/hooks/useAffiliations';
 import { useOffices } from '../features/offices/hooks/useOffices';
@@ -36,6 +37,44 @@ const NAV_ITEMS = [
   { id: 'clients',      label: 'Clientes',     icon: UserPlus },
   { id: 'reports',      label: 'Reportes',     icon: BarChart3, adminOnly: true },
 ];
+
+const copyText = async (text: string) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+};
+
+const normalizeWhatsAppPhone = (phone?: string | null) => {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('57') && digits.length >= 12) return digits;
+  if (digits.length === 10) return `57${digits}`;
+  return digits;
+};
+
+const getAffiliationWhatsAppUrl = (item: any, phone?: string | null) => {
+  const normalizedPhone = normalizeWhatsAppPhone(phone);
+  if (!normalizedPhone) return '';
+
+  const signature = item.office_name || 'Seguridad Social';
+  const message = `Hola, ${item.client_name}. Queremos recordarle que su afiliacion a seguridad social esta proxima a vencer.\n\nQueremos que siga protegido, asi que estamos listos para acompanarlo y ayudarle a renovarla de forma rapida y sin complicaciones. Escribanos por aqui y lo gestionamos juntos.\n\n${signature}`;
+  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
+};
+
+const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
+  <img src="/img/whatsapp.png" alt="" aria-hidden="true" width={size} height={size} className="block object-contain" />
+);
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 const StatCard = ({
@@ -114,7 +153,7 @@ const MiniTrendChart = ({ data }: { data: { month: string; value: number }[] }) 
 };
 
 // ─── Affiliation Row ───────────────────────────────────────────────────────────
-const AffiliationRow = ({ item, showOffice }: { item: any; showOffice?: boolean }) => {
+const AffiliationRow = ({ item, showOffice, clientFallback }: { item: any; showOffice?: boolean; clientFallback?: any }) => {
   const statusPaymentConfig: Record<string, { bg: string; text: string; dot: string }> = {
     'Pagado': { bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' },
     'Pendiente': { bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700 dark:text-amber-400', dot: 'bg-amber-500' },
@@ -135,11 +174,45 @@ const AffiliationRow = ({ item, showOffice }: { item: any; showOffice?: boolean 
   if (item.ccf_name !== '—') services.push('CCF');
   
   const paymentConfig = statusPaymentConfig[item.payment_status] || statusPaymentConfig['Pendiente'];
+  const phone1 = item.client_phone_1 || clientFallback?.phone_1 || null;
+  const phone2 = item.client_phone_2 || clientFallback?.phone_2 || null;
+  const phones = [phone1, phone2].filter(Boolean).join(' / ');
+  const primaryPhone = phone1 || phone2 || '';
+  const whatsappUrl = getAffiliationWhatsAppUrl(item, primaryPhone);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyPhone = async () => {
+    if (!primaryPhone) return;
+    await copyText(primaryPhone);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
 
   return (
     <tr className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
       <td className="px-4 py-3">
         <p className="text-sm font-semibold text-slate-800 dark:text-zinc-200">{item.client_name}</p>
+        <p className="text-xs text-slate-400 dark:text-zinc-500">{item.client_identification}</p>
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className="text-sm font-semibold text-slate-700 dark:text-zinc-300">{phones || 'Sin telefono'}</span>
+          <button
+            onClick={handleCopyPhone}
+            disabled={!primaryPhone}
+            className="rounded p-1 text-slate-400 transition-colors hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300 dark:hover:text-zinc-200 dark:disabled:text-zinc-700"
+            title="Copiar telefono"
+          >
+            {copied ? <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={13} />}
+          </button>
+          {whatsappUrl ? (
+            <a href={whatsappUrl} target="_blank" rel="noreferrer" className="rounded p-1" title="Enviar WhatsApp" aria-label="Enviar WhatsApp">
+              <WhatsAppIcon size={16} />
+            </a>
+          ) : (
+            <button disabled className="rounded p-1 opacity-30" title="Sin telefono" aria-label="WhatsApp no disponible">
+              <WhatsAppIcon size={16} />
+            </button>
+          )}
+        </div>
       </td>
       {showOffice && (
         <td className="px-4 py-3">
@@ -175,6 +248,7 @@ const AffiliationRow = ({ item, showOffice }: { item: any; showOffice?: boolean 
 // ─── Dashboard Home ───────────────────────────────────────────────────────────
 const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: number | null }) => {
   const { data: affiliations, isLoading } = useAffiliations();
+  const { data: clients } = useClients();
   const { offices } = useOffices();
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | 'all'>('all');
   const [targetMonth, setTargetMonth] = useState<number>(new Date().getMonth() + 1);
@@ -259,6 +333,10 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 8);
   }, [filteredAffiliations, targetMonth, targetYear]);
+
+  const clientsById = useMemo(() => {
+    return new Map((clients || []).map(client => [client.id, client]));
+  }, [clients]);
 
   const displayOfficeName = useMemo(() => {
     if (!isAdmin && activeOfficeId) {
@@ -434,7 +512,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
                 ))
               ) : displayedAffiliations.length > 0 ? (
                 displayedAffiliations.map(item => (
-                  <AffiliationRow key={item.id} item={item} showOffice={isAdmin} />
+                  <AffiliationRow key={item.id} item={item} showOffice={isAdmin} clientFallback={clientsById.get(item.client_id)} />
                 ))
               ) : (
                 <tr>

@@ -1,11 +1,75 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, RefreshCw, Pencil, Trash2, AlertCircle, UserCircle } from 'lucide-react';
+import { Search, RefreshCw, Pencil, Trash2, AlertCircle, UserCircle, Phone, Copy, CheckCircle2 } from 'lucide-react';
 import { useClients, useDeleteClient } from '../hooks/useClients';
 import type { Client } from '../types/client.types';
 import { CreateClientModal } from './CreateClientModal';
 import { EditClientModal } from './EditClientModal';
 import { useAuthStore } from '../../../store/useAuthStore';
+
+const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
+  <img
+    src="/img/whatsapp.png"
+    alt=""
+    aria-hidden="true"
+    width={size}
+    height={size}
+    className="block object-contain"
+  />
+);
+
+const getClientName = (client: Client) => {
+  return `${client.first_name} ${client.second_name || ''} ${client.first_lastname} ${client.second_lastname || ''}`.replace(/\s+/g, ' ').trim();
+};
+
+const formatPhones = (client: Client) => {
+  return [client.phone_1, client.phone_2].filter(Boolean).join(' / ') || 'Sin telefono';
+};
+
+const getPrimaryPhone = (client: Client) => {
+  return client.phone_1 || client.phone_2 || '';
+};
+
+const normalizeWhatsAppPhone = (phone?: string | null) => {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('57') && digits.length >= 12) return digits;
+  if (digits.length === 10) return `57${digits}`;
+  return digits;
+};
+
+const getWhatsAppUrl = (client: Client) => {
+  const phone = normalizeWhatsAppPhone(getPrimaryPhone(client));
+  if (!phone) return '';
+
+  const clientName = getClientName(client);
+  const signature = client.office_name || 'Seguridad Social';
+  const message = `Hola, ${clientName}. Queremos recordarle que su afiliacion a seguridad social esta proxima a vencer.\n\nQueremos que siga protegido, asi que estamos listos para acompanarlo y ayudarle a renovarla de forma rapida y sin complicaciones. Escribanos por aqui y lo gestionamos juntos.\n\n${signature}`;
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+};
+
+const getCallUrl = (client: Client) => {
+  const phone = normalizeWhatsAppPhone(getPrimaryPhone(client));
+  return phone ? `tel:+${phone}` : '';
+};
+
+const copyText = async (text: string) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+};
 
 export const ClientsTable = () => {
   const { data: clients, isLoading, isError, refetch, isFetching } = useClients();
@@ -16,6 +80,7 @@ export const ClientsTable = () => {
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [copiedClientId, setCopiedClientId] = useState<number | null>(null);
   const { user, activeOfficeId } = useAuthStore();
   const isAdmin = user?.role === 'admin';
   const itemsPerPage = 10;
@@ -29,10 +94,12 @@ export const ClientsTable = () => {
     });
 
     return officeFiltered.filter(c => {
-      const fullName = `${c.first_name} ${c.second_name || ''} ${c.first_lastname} ${c.second_lastname || ''}`.replace(/\s+/g, ' ').toLowerCase();
+      const fullName = getClientName(c).toLowerCase();
       const matchSearch =
         fullName.includes(search.toLowerCase()) ||
         c.identification.includes(search) ||
+        (c.phone_1?.includes(search) ?? false) ||
+        (c.phone_2?.includes(search) ?? false) ||
         (c.email?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
         (c.office_name?.toLowerCase().includes(search.toLowerCase()) ?? false);
       return matchSearch;
@@ -56,6 +123,15 @@ export const ClientsTable = () => {
     } catch (err: any) {
       setDeleteError(err.response?.data?.error || 'Error al eliminar cliente');
     }
+  };
+
+  const handleCopyPhone = async (client: Client) => {
+    const phone = getPrimaryPhone(client);
+    if (!phone) return;
+
+    await copyText(phone);
+    setCopiedClientId(client.id);
+    window.setTimeout(() => setCopiedClientId(null), 1800);
   };
 
   if (isError) return (
@@ -107,13 +183,163 @@ export const ClientsTable = () => {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+      <div className="grid gap-3 md:hidden">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <div className="h-4 w-40 rounded bg-slate-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="mt-3 h-3 w-28 rounded bg-slate-100 dark:bg-zinc-800 animate-pulse" />
+              <div className="mt-2 h-3 w-36 rounded bg-slate-100 dark:bg-zinc-800 animate-pulse" />
+            </div>
+          ))
+        ) : filtered.length === 0 ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-400 dark:border-zinc-800 dark:bg-zinc-900">
+            <UserCircle size={40} className="mx-auto mb-3 opacity-30" />
+            <p>No se encontraron clientes</p>
+          </div>
+        ) : (
+          paginated.map(client => {
+            const whatsappUrl = getWhatsAppUrl(client);
+            const callUrl = getCallUrl(client);
+            const hasPhone = Boolean(getPrimaryPhone(client));
+            const primaryPhone = getPrimaryPhone(client);
+
+            return (
+              <motion.div
+                key={client.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm shadow-indigo-500/5 dark:border-indigo-900/30 dark:bg-zinc-900"
+              >
+                <div className="mb-3 h-1 w-14 rounded-full bg-gradient-to-r from-indigo-500 to-emerald-400" />
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-base font-semibold leading-snug text-slate-900 dark:text-zinc-100">{getClientName(client)}</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                      {client.document_type_name} {client.identification}
+                    </p>
+                    {isAdmin && (
+                      <p className="mt-1 text-xs font-medium text-slate-500 dark:text-zinc-400">
+                        {client.office_name}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={() => setEditingClient(client)}
+                      className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                      title="Editar"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => setClientToDelete(client)}
+                      className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600 dark:hover:bg-zinc-800"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 dark:border-indigo-900/30 dark:bg-indigo-950/10">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-zinc-500">
+                        <Phone size={13} /> Contacto
+                      </p>
+                      <div className="min-w-0">
+                        <p className="break-all text-base font-semibold text-slate-900 dark:text-zinc-100">
+                          {primaryPhone || 'Sin telefono'}
+                        </p>
+                        {client.phone_1 && client.phone_2 && (
+                          <p className="mt-0.5 break-all text-xs text-slate-500 dark:text-zinc-400">Alterno: {client.phone_2}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <button
+                        onClick={() => handleCopyPhone(client)}
+                        disabled={!hasPhone}
+                        className="flex h-9 w-9 items-center justify-center text-slate-500 transition-colors hover:text-slate-900 disabled:text-slate-300 dark:text-zinc-400 dark:hover:text-zinc-100 dark:disabled:text-zinc-700"
+                        title="Copiar telefono"
+                      >
+                        {copiedClientId === client.id ? <CheckCircle2 size={22} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={21} />}
+                      </button>
+                      {whatsappUrl ? (
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex h-9 w-9 items-center justify-center text-emerald-600 transition-colors hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                          title="Enviar WhatsApp"
+                          aria-label="Enviar WhatsApp"
+                        >
+                          <WhatsAppIcon size={24} />
+                        </a>
+                      ) : (
+                        <button disabled className="flex h-9 w-9 items-center justify-center text-slate-300 dark:text-zinc-700" title="Sin telefono" aria-label="WhatsApp no disponible">
+                          <WhatsAppIcon size={24} />
+                        </button>
+                      )}
+                      {callUrl ? (
+                        <a
+                          href={callUrl}
+                          className="flex h-9 w-9 items-center justify-center text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                          title="Llamar"
+                          aria-label="Llamar"
+                        >
+                          <Phone size={22} />
+                        </a>
+                      ) : (
+                        <button disabled className="flex h-9 w-9 items-center justify-center text-slate-300 dark:text-zinc-700" title="Sin telefono" aria-label="Llamada no disponible">
+                          <Phone size={22} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="mt-3 truncate text-xs text-slate-400 dark:text-zinc-500">
+                  {client.email || 'Sin email'}
+                </p>
+
+              </motion.div>
+            );
+          })
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 disabled:opacity-50"
+            >
+              Anterior
+            </button>
+            <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 disabled:opacity-50"
+            >
+              Siguiente
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50">
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">#</th>
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Cliente</th>
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Identificación</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Telefono</th>
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Email</th>
               {isAdmin && <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Oficina</th>}
               <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Acciones</th>
@@ -123,7 +349,7 @@ export const ClientsTable = () => {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i} className="border-b border-slate-50 dark:border-zinc-800/60">
-                  {Array.from({ length: 6 }).map((_, j) => (
+                  {Array.from({ length: isAdmin ? 7 : 6 }).map((_, j) => (
                     <td key={j} className="px-4 py-3.5">
                       <div className="h-3 bg-slate-100 dark:bg-zinc-800 rounded-full animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
                     </td>
@@ -132,7 +358,7 @@ export const ClientsTable = () => {
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-20 text-slate-400">
+                <td colSpan={isAdmin ? 7 : 6} className="text-center py-20 text-slate-400">
                   <UserCircle size={40} className="mx-auto mb-3 opacity-30" />
                   <p>No se encontraron clientes</p>
                 </td>
@@ -161,7 +387,20 @@ export const ClientsTable = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-slate-600 dark:text-zinc-400">
-                      {client.email || <span className="text-slate-400">Sin email</span>}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium">{formatPhones(client)}</span>
+                        <button
+                          onClick={() => handleCopyPhone(client)}
+                          disabled={!getPrimaryPhone(client)}
+                          className="rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:text-slate-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 dark:disabled:text-zinc-700"
+                          title="Copiar telefono"
+                        >
+                          {copiedClientId === client.id ? <CheckCircle2 size={15} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-slate-600 dark:text-zinc-400">
+                      {client.email || <span className="text-slate-400">Sin email aaa</span>}
                     </td>
                     {isAdmin && (
                       <td className="px-4 py-3.5">
@@ -172,6 +411,25 @@ export const ClientsTable = () => {
                     )}
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1">
+                        {getWhatsAppUrl(client) ? (
+                          <a
+                            href={getWhatsAppUrl(client)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-8 w-8 items-center justify-center text-emerald-600 transition-colors hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                            title="Enviar WhatsApp"
+                          >
+                            <WhatsAppIcon size={17} />
+                          </a>
+                        ) : (
+                          <button
+                            disabled
+                            className="p-1.5 rounded-lg text-slate-300 dark:text-zinc-700 cursor-not-allowed"
+                            title="Sin telefono"
+                          >
+                            <WhatsAppIcon size={17} />
+                          </button>
+                        )}
                         <button
                           onClick={() => setEditingClient(client)}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
