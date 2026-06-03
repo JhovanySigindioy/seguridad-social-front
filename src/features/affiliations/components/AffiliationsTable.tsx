@@ -123,6 +123,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
   const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [copiedPhoneId, setCopiedPhoneId] = useState<number | null>(null);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const itemsPerPage = 8;
   const allowedStatusOptions = useMemo(() => getAllowedStatuses(user?.role), [user?.role]);
   const canChangeStatus = allowedStatusOptions.length > 0;
@@ -358,6 +359,12 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
           </button>
         </div>
       </div>
+      {invoiceError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-600 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-400">
+          <span>⚠️</span>
+          <span>{invoiceError}</span>
+        </div>
+      )}
       {statusError && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-600 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-400">
           {statusError}
@@ -533,8 +540,16 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                         <button
                           onClick={() => handleDownloadInvoice(item)}
                           disabled={downloadingId === item.id || !canDownloadInvoice(item.payment_status)}
-                          className={`p-1.5 rounded-lg transition-colors ${!canDownloadInvoice(item.payment_status) ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'} ${downloadingId === item.id ? 'opacity-50 cursor-wait' : ''}`}
-                          title={!canDownloadInvoice(item.payment_status) ? 'Disponible si el estado es En Proceso o Pagado' : 'Descargar Factura'}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            !canDownloadInvoice(item.payment_status)
+                              ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed'
+                              : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
+                          } ${downloadingId === item.id ? 'opacity-50 cursor-wait' : ''}`}
+                          title={
+                            !canDownloadInvoice(item.payment_status)
+                              ? 'La factura se genera automáticamente cuando el estado sea En Proceso o Pagado'
+                              : 'Descargar Factura (generada automáticamente)'
+                          }
                         >
                           {downloadingId === item.id ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
                         </button>
