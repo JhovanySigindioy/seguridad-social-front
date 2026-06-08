@@ -495,9 +495,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
                       {(() => {
                         const currentPaymentStatus = item.payment_status;
-                        return item.status === 'Inactivo' ? (
-                          <StatusBadge status={currentPaymentStatus} />
-                        ) : canChangeStatus ? (
+                        return canChangeStatus ? (
                           <div
                             title="Cambiar estado"
                             className={`inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${STATUS_STYLES[currentPaymentStatus].select}`}
