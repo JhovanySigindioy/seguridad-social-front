@@ -251,9 +251,10 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
       document.body.appendChild(link);
       link.click();
       link.parentNode?.removeChild(link);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error downloading invoice:', error);
-      // Opcional: Mostrar toast de error si tienes useToast en este componente
+      setInvoiceError(error?.response?.data?.error || 'No se pudo descargar la factura');
+      window.setTimeout(() => setInvoiceError(null), 4000);
     } finally {
       setDownloadingId(null);
     }
