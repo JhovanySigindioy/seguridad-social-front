@@ -35,6 +35,7 @@ export interface AffiliationItem {
   is_auto_renewed: boolean;
   observation: string | null;
   withdrawal_reason: WithdrawalReason | null;
+  withdrawal_observations: string | null;
   office_name: string;
 }
 

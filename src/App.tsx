@@ -23,6 +23,8 @@ const AppBridge = () => {
 
 function App() {
   const token = useAuthStore(state => state.token);
+  const user = useAuthStore(state => state.user);
+  const isAdmin = user?.role === 'admin';
 
   return (
     <ToastProvider>
@@ -40,6 +42,14 @@ function App() {
           <Route 
             path="/affiliations" 
             element={token ? <DashboardPage tab="affiliations" /> : <Navigate to="/login" />} 
+          />
+          <Route
+            path="/admin/companies/new"
+            element={token && isAdmin ? <DashboardPage tab="admin-companies" /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/admin/offices/new"
+            element={token && isAdmin ? <DashboardPage tab="admin-offices" /> : <Navigate to="/" />}
           />
         </Routes>
       </BrowserRouter>

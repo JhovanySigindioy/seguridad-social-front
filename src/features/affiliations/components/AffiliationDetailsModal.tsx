@@ -53,11 +53,11 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
             className="relative w-full max-w-2xl bg-white dark:bg-zinc-950 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-zinc-800 flex flex-col max-h-[90vh]"
           >
             {/* Header */}
-            <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                  <FileText size={20} />
-                </div>
+              <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    <FileText size={20} />
+                  </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">Detalle de Afiliación</h2>
@@ -66,6 +66,13 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg border ${
+                      data.status === 'Inactivo'
+                        ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30'
+                        : 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30'
+                    }`}>
+                      Estado: {data.status}
+                    </span>
                     <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold rounded-lg border border-emerald-100 dark:border-emerald-900/30">
                       Inicio: {formatDate(data.start_date)}
                     </span>
@@ -188,6 +195,31 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
                   </div>
                 </div>
               </div>
+
+              {(data.observation || data.withdrawal_reason || data.withdrawal_observations) && (
+                <div>
+                  <h3 className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <FileText size={14} /> Observaciones y Retiro
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="bg-slate-50 dark:bg-zinc-900/50 p-4 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                      <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase mb-2">Observacion general</p>
+                      <p className="text-sm text-slate-700 dark:text-zinc-300 whitespace-pre-wrap">
+                        {data.observation || 'Sin observacion general'}
+                      </p>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-950/10 p-4 rounded-2xl border border-red-100 dark:border-red-900/30">
+                      <p className="text-xs font-bold text-red-500 dark:text-red-400 uppercase mb-2">Retiro</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+                        Motivo: {data.withdrawal_reason || 'Sin motivo registrado'}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-slate-700 dark:text-zinc-300 whitespace-pre-wrap break-words">
+                        {data.withdrawal_observations || 'Sin observaciones de retiro'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
             </div>
           </motion.div>

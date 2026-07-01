@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, LogOut,
   Building2, Menu, X, Sun, Moon, Bell,
   TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus, Copy,
-  BarChart3, Target
+  BarChart3, Target, BriefcaseBusiness
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
@@ -16,6 +16,8 @@ import { DailyReportPage } from '../features/affiliations/pages/DailyReportPage'
 import { ClientsPage } from '../features/clients/pages/ClientsPage';
 import { useClients } from '../features/clients/hooks/useClients';
 import { ReportsPage } from '../features/reports/pages/ReportsPage';
+import { NewCompanyPage } from '../features/companies/pages/NewCompanyPage';
+import { NewOfficePage } from '../features/offices/pages/NewOfficePage';
 import { useAffiliations } from '../features/affiliations/hooks/useAffiliations';
 import { useOffices } from '../features/offices/hooks/useOffices';
 import { useDashboardStats } from '../hooks/useDashboardStats';
@@ -23,19 +25,29 @@ import { MonthYearSelector } from '../components/MonthYearSelector';
 
 // ─── Nav Items ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { id: 'dashboard',    label: 'Dashboard',   icon: LayoutDashboard },
-  { 
-    id: 'affiliations-menu', 
-    label: 'Afiliaciones', 
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  {
+    id: 'affiliations-menu',
+    label: 'Afiliaciones',
     icon: Users,
     subItems: [
       { id: 'affiliations', label: 'Listado General' },
       { id: 'daily-report', label: 'Reporte Diario' },
-      { id: 'retired',      label: 'Retirados' }
+      { id: 'retired', label: 'Retirados' }
     ]
   },
-  { id: 'clients',      label: 'Clientes',     icon: UserPlus },
-  { id: 'reports',      label: 'Reportes',     icon: BarChart3, adminOnly: true },
+  { id: 'clients', label: 'Clientes', icon: UserPlus },
+  // {
+  //   id: 'admin-menu',
+  //   label: 'Administracion',
+  //   icon: BriefcaseBusiness,
+  //   adminOnly: true,
+  //   subItems: [
+  //     { id: 'admin-companies', label: 'Nueva Empresa' },
+  //     { id: 'admin-offices', label: 'Nueva Sede' },
+  //   ]
+  // },
+  { id: 'reports', label: 'Reportes', icon: BarChart3, adminOnly: true },
 ];
 
 const copyText = async (text: string) => {
@@ -94,7 +106,7 @@ const StatCard = ({
         <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-2">
           {label}
         </p>
-        <motion.p 
+        <motion.p
           key={value}
           initial={{ scale: 0.8, opacity: 0.5 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -116,11 +128,11 @@ const MiniTrendChart = ({ data }: { data: { month: string; value: number }[] }) 
   const values = data.map(d => d.value);
   const max = Math.max(...values, 1);
   const min = Math.min(...values);
-  
+
   // Start the y-axis at slightly below the minimum value to exaggerate the differences and show the trend clearly
   const base = max === min ? 0 : min * 0.85;
   const range = max - base;
-  
+
   const formatValue = (val: number) => {
     if (val === 0) return '';
     if (val >= 1000000) return (val / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -136,8 +148,8 @@ const MiniTrendChart = ({ data }: { data: { month: string; value: number }[] }) 
           <div className="absolute -top-7 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
             ${d.value.toLocaleString('es-CO')}
           </div>
-          
-          <div 
+
+          <div
             className="w-full flex flex-col justify-center items-center bg-indigo-200 dark:bg-indigo-800 rounded-t transition-all group-hover:bg-indigo-300 dark:group-hover:bg-indigo-700 overflow-hidden"
             style={{ height: `${d.value === 0 ? 0 : Math.max(((d.value - base) / range) * 56, 16)}px` }}
           >
@@ -159,20 +171,20 @@ const AffiliationRow = ({ item, showOffice, clientFallback }: { item: any; showO
     'Pendiente': { bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700 dark:text-amber-400', dot: 'bg-amber-500' },
     'En Proceso': { bg: 'bg-blue-50 dark:bg-blue-950/30', text: 'text-blue-700 dark:text-blue-400', dot: 'bg-blue-500' },
   };
-  
+
   const serviceColors: Record<string, string> = {
     'EPS': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
     'PEN': 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
     'ARL': 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
     'CCF': 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   };
-  
+
   const services: string[] = [];
   if (item.eps_name !== '—') services.push('EPS');
   if (item.pension_name !== '—') services.push('PEN');
   if (item.arl_name !== '—') services.push('ARL');
   if (item.ccf_name !== '—') services.push('CCF');
-  
+
   const paymentConfig = statusPaymentConfig[item.payment_status] || statusPaymentConfig['Pendiente'];
   const phone1 = item.client_phone_1 || clientFallback?.phone_1 || null;
   const phone2 = item.client_phone_2 || clientFallback?.phone_2 || null;
@@ -260,7 +272,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
   // Filter affiliations based on selected office
   const filteredAffiliations = useMemo(() => {
     if (!affiliations) return [];
-    
+
     // For office_manager: always filter by their active office
     if (!isAdmin && activeOfficeId) {
       const office = offices.find(o => o.id === activeOfficeId);
@@ -269,7 +281,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
         return affiliations.filter((a: any) => a.office_name === officeName);
       }
     }
-    
+
     // For admin: use the dropdown selection
     if (selectedOfficeId === 'all') return affiliations;
     const selectedOffice = offices.find(o => o.id === selectedOfficeId);
@@ -277,7 +289,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
     if (selectedOfficeName) {
       return affiliations.filter((a: any) => a.office_name === selectedOfficeName);
     }
-    
+
     return affiliations;
   }, [affiliations, selectedOfficeId, activeOfficeId, isAdmin, offices]);
 
@@ -314,7 +326,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
   // Trend data (last 6 months)
   const trendData = useMemo(() => {
     if (!dashboardStats) return [];
-    
+
     // Server returns DESC (May, Apr, Mar...). We reverse to make it chronological.
     return [...dashboardStats.trendData].reverse().map(t => ({
       month: monthNames[t.month - 1],
@@ -361,10 +373,10 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <MonthYearSelector 
-            month={targetMonth} 
-            year={targetYear} 
-            onChange={(m, y) => { setTargetMonth(m); setTargetYear(y); }} 
+          <MonthYearSelector
+            month={targetMonth}
+            year={targetYear}
+            onChange={(m, y) => { setTargetMonth(m); setTargetYear(y); }}
           />
           {isAdmin && (
             <select
@@ -388,7 +400,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
         className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border-2 border-blue-500/20 dark:border-blue-500/30 shadow-lg shadow-blue-500/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none -mr-32 -mt-32" />
-        
+
         <div className="relative z-10 flex items-center gap-4">
           <div className="p-4 bg-blue-100 dark:bg-blue-900/40 rounded-2xl text-blue-600 dark:text-blue-400">
             <Target size={32} strokeWidth={2.5} />
@@ -406,8 +418,8 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
         <div className="relative z-10 w-full md:w-auto flex flex-col md:items-end gap-1">
           <div className="flex items-center gap-5 w-full">
             <div className="flex-1 md:w-48 lg:w-64 h-3.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden shadow-inner">
-              <motion.div 
-                className="h-full bg-blue-500 dark:bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
+              <motion.div
+                className="h-full bg-blue-500 dark:bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
                 initial={{ width: 0 }}
                 animate={{ width: `${isLoading ? 0 : Math.min(100, completionPercentage)}%` }}
                 transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
@@ -558,12 +570,13 @@ const Sidebar = ({
   const { logout } = useAuthStore();
   const isAdmin = user?.role === 'admin';
   const { offices } = useOffices();
-  
+
   const currentOffice = offices?.find(o => o.id === activeOfficeId);
   const logoUrl = currentOffice?.logo_url || user?.agency_logo_url;
 
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
-    'affiliations-menu': ['affiliations', 'daily-report', 'retired'].includes(activeTab)
+    'affiliations-menu': ['affiliations', 'daily-report', 'retired'].includes(activeTab),
+    'admin-menu': ['admin-companies', 'admin-offices'].includes(activeTab)
   });
 
   const toggleMenu = (id: string) => {
@@ -614,11 +627,10 @@ const Sidebar = ({
               <div key={item.id} className="space-y-1">
                 <button
                   onClick={() => toggleMenu(item.id)}
-                  className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    hasActiveChild && !isOpen
+                  className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${hasActiveChild && !isOpen
                       ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400'
                       : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
-                  }`}
+                    }`}
                 >
                   <span className="flex items-center gap-3">
                     <item.icon size={17} />
@@ -641,15 +653,14 @@ const Sidebar = ({
                             <button
                               key={sub.id}
                               onClick={() => { onTabChange(sub.id); onClose(); }}
-                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                                active
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${active
                                   ? sub.id === 'retired'
                                     ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
                                     : 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                                   : sub.id === 'retired'
                                     ? 'text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
                                     : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
-                              }`}
+                                }`}
                             >
                               {sub.label}
                             </button>
@@ -668,11 +679,10 @@ const Sidebar = ({
             <button
               key={item.id}
               onClick={() => { onTabChange(item.id); onClose(); }}
-              className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                active
+              className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                   : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
-              }`}
+                }`}
             >
               <span className="flex items-center gap-3">
                 <item.icon size={17} />
@@ -723,7 +733,7 @@ export const DashboardPage = ({ tab }: DashboardPageProps = {}) => {
     }
   }, [tab]);
 
-  const isAdmin   = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin';
   const isBlocked = !isAdmin && !activeOfficeId;
 
   const renderContent = () => {
@@ -734,10 +744,12 @@ export const DashboardPage = ({ tab }: DashboardPageProps = {}) => {
       case 'new-affiliation': return <NewAffiliationPage onCancel={() => setActiveTab('affiliations')} onSuccess={() => setActiveTab('affiliations')} />;
       case 'clients': return <ClientsPage />;
       case 'retired': return <AffiliationsTable defaultTab="inactivas" />;
+      case 'admin-companies': return isAdmin ? <NewCompanyPage /> : <DashboardHome user={user} activeOfficeId={activeOfficeId} />;
+      case 'admin-offices': return isAdmin ? <NewOfficePage /> : <DashboardHome user={user} activeOfficeId={activeOfficeId} />;
       case 'companies': return <ComingSoon label="Módulo de Empresas" />;
       case 'reports': return isAdmin ? <ReportsPage /> : <DashboardHome user={user} activeOfficeId={activeOfficeId} />;
-      case 'billing':   return <ComingSoon label="Módulo de Facturación" />;
-      case 'settings':  return <ComingSoon label="Configuración del Sistema" />;
+      case 'billing': return <ComingSoon label="Módulo de Facturación" />;
+      case 'settings': return <ComingSoon label="Configuración del Sistema" />;
       default: return null;
     }
   };
@@ -751,7 +763,7 @@ export const DashboardPage = ({ tab }: DashboardPageProps = {}) => {
         <Sidebar
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          onClose={() => {}}
+          onClose={() => { }}
           isMobile={false}
           user={user}
           activeOfficeId={activeOfficeId}

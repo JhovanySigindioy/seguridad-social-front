@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, UserPlus, Trash2, Download, Loader2, Copy, CheckCircle2 } from 'lucide-react';
+import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, UserPlus, Trash2, Download, Loader2, Copy, CheckCircle2, Eye } from 'lucide-react';
 import api from '../../../services/api/axios-instance';
 import { useAffiliations, useUpdateAffiliationStatus } from '../hooks/useAffiliations';
 import { useAuthStore } from '../../../store/useAuthStore';
@@ -97,6 +97,14 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
   <img src="/img/whatsapp.png" alt="" aria-hidden="true" width={size} height={size} className="block object-contain" />
 );
 
+const getDisplayObservation = (item: AffiliationItem) => {
+  if (item.status === 'Inactivo') {
+    return item.withdrawal_observations || item.observation || null;
+  }
+
+  return item.observation || null;
+};
+
 interface AffiliationsTableProps {
   onNewAffiliation?: () => void;
   defaultTab?: 'activas' | 'inactivas';
@@ -153,11 +161,22 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
         const matchSearch =
           a.client_name.toLowerCase().includes(search.toLowerCase()) ||
           a.client_identification.includes(search) ||
-          a.company_name.toLowerCase().includes(search.toLowerCase());
+          a.company_name.toLowerCase().includes(search.toLowerCase()) ||
+          (getDisplayObservation(a)?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+          (a.withdrawal_reason?.toLowerCase().includes(search.toLowerCase()) ?? false);
         const matchStatus = statusFilter === 'all' || a.payment_status === statusFilter;
         return matchSearch && matchStatus;
       })
       .sort((a: any, b: any) => {
+        if (sortField === 'observation') {
+          const aValue = getDisplayObservation(a as AffiliationItem) || '';
+          const bValue = getDisplayObservation(b as AffiliationItem) || '';
+          const dir = sortDir === 'asc' ? 1 : -1;
+          if (aValue < bValue) return -1 * dir;
+          if (aValue > bValue) return 1 * dir;
+          return 0;
+        }
+
         const dir = sortDir === 'asc' ? 1 : -1;
         if (a[sortField] < b[sortField]) return -1 * dir;
         if (a[sortField] > b[sortField]) return 1 * dir;
@@ -522,12 +541,24 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                       })()}
                     </td>
                     <td className="px-4 py-3.5 max-w-[150px]">
-                      <div className="truncate text-xs text-slate-500 dark:text-zinc-400" title={item.observation || 'Sin observaciones'}>
-                        {item.observation || '—'}
+                      <div className="truncate text-xs text-slate-500 dark:text-zinc-400" title={getDisplayObservation(item) || 'Sin observaciones'}>
+                        {getDisplayObservation(item) || '—'}
                       </div>
+                      {item.status === 'Inactivo' && item.withdrawal_reason && (
+                        <div className="mt-1 text-[11px] font-medium text-red-500 dark:text-red-400">
+                          Motivo: {item.withdrawal_reason}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setSelectedItem(item)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors"
+                          title="Ver detalle completo"
+                        >
+                          <Eye size={15} />
+                        </button>
                         <button
                           onClick={() => item.status !== 'Inactivo' && setEditingItem(item)}
                           disabled={item.status === 'Inactivo'}
