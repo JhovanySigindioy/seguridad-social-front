@@ -37,16 +37,16 @@ const NAV_ITEMS = [
     ]
   },
   { id: 'clients', label: 'Clientes', icon: UserPlus },
-  // {
-  //   id: 'admin-menu',
-  //   label: 'Administracion',
-  //   icon: BriefcaseBusiness,
-  //   adminOnly: true,
-  //   subItems: [
-  //     { id: 'admin-companies', label: 'Nueva Empresa' },
-  //     { id: 'admin-offices', label: 'Nueva Sede' },
-  //   ]
-  // },
+  {
+    id: 'admin-menu',
+    label: 'Administracion',
+    icon: BriefcaseBusiness,
+    adminOnly: true,
+    subItems: [
+      { id: 'admin-companies', label: 'Nueva Empresa' },
+      // { id: 'admin-offices', label: 'Nueva Sede' },
+    ]
+  },
   { id: 'reports', label: 'Reportes', icon: BarChart3, adminOnly: true },
 ];
 
@@ -628,8 +628,8 @@ const Sidebar = ({
                 <button
                   onClick={() => toggleMenu(item.id)}
                   className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${hasActiveChild && !isOpen
-                      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400'
-                      : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
+                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400'
+                    : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
                     }`}
                 >
                   <span className="flex items-center gap-3">
@@ -654,12 +654,12 @@ const Sidebar = ({
                               key={sub.id}
                               onClick={() => { onTabChange(sub.id); onClose(); }}
                               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${active
-                                  ? sub.id === 'retired'
-                                    ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
-                                    : 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                                  : sub.id === 'retired'
-                                    ? 'text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                                    : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
+                                ? sub.id === 'retired'
+                                  ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
+                                  : 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                                : sub.id === 'retired'
+                                  ? 'text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                                  : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
                                 }`}
                             >
                               {sub.label}
@@ -680,8 +680,8 @@ const Sidebar = ({
               key={item.id}
               onClick={() => { onTabChange(item.id); onClose(); }}
               className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                  : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
                 }`}
             >
               <span className="flex items-center gap-3">
