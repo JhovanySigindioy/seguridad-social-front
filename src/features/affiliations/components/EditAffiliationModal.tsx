@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Building, Heart, Shield, Landmark, CheckCircle2, Calendar } from 'lucide-react';
 import { useAffiliationFormData, useUpdateAffiliation } from '../hooks/useAffiliations';
 import { useToast } from '../../../components/Toast';
-import type { AffiliationItem } from '../types/affiliation.types';
+import { WITHDRAWAL_REASONS, type AffiliationItem, type WithdrawalReason } from '../types/affiliation.types';
 
 interface Props {
   isOpen: boolean;
@@ -37,6 +37,8 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
   const [method, setMethod] = useState('');
   const [isAutoRenewed, setIsAutoRenewed] = useState(true);
   const [observation, setObservation] = useState('');
+  const [withdrawalReason, setWithdrawalReason] = useState<WithdrawalReason | ''>('');
+  const [withdrawalObservations, setWithdrawalObservations] = useState('');
 
   useEffect(() => {
     if (affiliation && isOpen) {
@@ -46,6 +48,8 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
       setMethod((affiliation as any).payment_method || '');
       setIsAutoRenewed(Boolean(affiliation.is_auto_renewed));
       setObservation(affiliation.observation || '');
+      setWithdrawalReason(affiliation.withdrawal_reason || '');
+      setWithdrawalObservations(affiliation.withdrawal_observations || '');
 
       if (affiliation.gov_record_at) {
         setGovRecordAt(affiliation.gov_record_at.split('T')[0]);
@@ -119,7 +123,9 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
         pension_id: hasPension ? Number(pensionId) : null,
         risk_level: hasArl ? riskLevel : null,
         is_auto_renewed: isAutoRenewed,
-        observation: observation || null,
+        observation: observation.trim() || null,
+        withdrawal_reason: withdrawalReason || null,
+        withdrawal_observations: withdrawalObservations.trim() || null,
         month: affiliation?.month,
         year: affiliation?.year,
       });
@@ -156,6 +162,8 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
       )}
     </button>
   );
+
+  const isInactiveAffiliation = affiliation?.status === 'Inactivo';
 
   return (
     <AnimatePresence>
@@ -371,6 +379,34 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
                             className="w-full p-2 text-sm bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-lg outline-none focus:border-indigo-500 text-slate-800 dark:text-zinc-200 resize-none"
                           />
                         </div>
+                        {isInactiveAffiliation && (
+                          <>
+                            <div className="h-px bg-slate-200 dark:bg-zinc-800" />
+                            <div>
+                              <label className="block text-xs text-red-500 dark:text-red-400 mb-1">Motivo de retiro</label>
+                              <select
+                                value={withdrawalReason}
+                                onChange={e => setWithdrawalReason(e.target.value as WithdrawalReason | '')}
+                                className="w-full p-2 text-sm bg-slate-50 dark:bg-zinc-950 border border-red-200 dark:border-red-900/40 rounded-lg outline-none focus:border-red-500 text-slate-800 dark:text-zinc-200"
+                              >
+                                <option value="">Sin motivo</option>
+                                {WITHDRAWAL_REASONS.map(reason => (
+                                  <option key={reason} value={reason}>{reason}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-red-500 dark:text-red-400 mb-1">Observaciones de retiro</label>
+                              <textarea
+                                value={withdrawalObservations}
+                                onChange={e => setWithdrawalObservations(e.target.value)}
+                                placeholder="Describe el contexto del retiro..."
+                                rows={3}
+                                className="w-full p-2 text-sm bg-slate-50 dark:bg-zinc-950 border border-red-200 dark:border-red-900/40 rounded-lg outline-none focus:border-red-500 text-slate-800 dark:text-zinc-200 resize-none"
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </>

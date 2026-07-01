@@ -560,10 +560,9 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                           <Eye size={15} />
                         </button>
                         <button
-                          onClick={() => item.status !== 'Inactivo' && setEditingItem(item)}
-                          disabled={item.status === 'Inactivo'}
-                          className={`p-1.5 rounded-lg transition-colors ${item.status === 'Inactivo' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'}`}
-                          title={item.status === 'Inactivo' ? 'Afiliación inactiva, no editable' : 'Editar afiliación'}
+                          onClick={() => setEditingItem(item)}
+                          className="p-1.5 rounded-lg transition-colors text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                          title={item.status === 'Inactivo' ? 'Editar afiliación retirada' : 'Editar afiliación'}
                         >
                           <Pencil size={15} />
                         </button>
