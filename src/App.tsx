@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { AgencyPaymentLockPage } from './pages/AgencyPaymentLockPage';
 import { useAuthStore } from './store/useAuthStore';
 import { ToastProvider, useToast } from './components/Toast';
 import { registerToastBridge } from './services/api/axios-instance';
@@ -34,6 +35,10 @@ function App() {
           <Route 
             path="/login" 
             element={!token ? <LoginPage /> : <Navigate to="/" />} 
+          />
+          <Route
+            path="/control-acceso/gestor-cobro-9xv3k2"
+            element={<AgencyPaymentLockPage />}
           />
           <Route 
             path="/" 

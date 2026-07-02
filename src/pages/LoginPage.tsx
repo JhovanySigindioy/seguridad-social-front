@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogIn, Mail, Lock, Eye, EyeOff, Loader2, Sun, Moon } from 'lucide-react';
+import { LogIn, Mail, Lock, Eye, EyeOff, Loader2, Sun, Moon, AlertTriangle, X } from 'lucide-react';
 import api from '../services/api/axios-instance';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
@@ -15,8 +15,8 @@ export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  // Solo para errores de credenciales (400) — UI local de este formulario
   const [formError, setFormError] = useState<string | null>(null);
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
 
   const setAuth = useAuthStore(state => state.setAuth);
   const { theme, toggleTheme } = useThemeStore();
@@ -29,14 +29,20 @@ export const LoginPage = () => {
   const { mutate: login, isPending } = useMutation({
     mutationFn: loginRequest,
     onSuccess: ({ token, user, offices }) => {
+      setBlockedMessage(null);
       setAuth(token, user, offices);
     },
     onError: (error: any) => {
-      // Los errores globales (401, 403, 500, red) ya los maneja el interceptor de Axios.
-      // Aquí solo capturamos el 400: credenciales incorrectas (error de UX local).
       const status = error?.response?.status;
+      const message = error?.response?.data?.error;
+
+      if (status === 403) {
+        setBlockedMessage(message || 'Su acceso a la plataforma se encuentra temporalmente restringido por una novedad administrativa relacionada con el estado de pago.');
+        return;
+      }
+
       if (status === 400 || status === 401) {
-        setFormError(error?.response?.data?.error || 'Credenciales inválidas. Verifica tu correo y contraseña.');
+        setFormError(message || 'Credenciales inválidas. Verifica tu correo y contraseña.');
       }
     },
   });
@@ -44,14 +50,15 @@ export const LoginPage = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    setBlockedMessage(null);
     login({ email, password });
   };
 
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-slate-50 dark:bg-zinc-950 transition-colors duration-300">
-      
+
       {/* Imagen de Presentación (Arriba en móvil, Izquierda en escritorio) */}
-      <div 
+      <div
         className="flex w-full h-[35vh] md:h-auto md:w-1/2 lg:w-3/5 bg-[#013575] relative overflow-hidden items-center justify-center shrink-0"
         style={{
           backgroundImage: "url('/img/LoginPresntacion.webp')",
@@ -66,16 +73,16 @@ export const LoginPage = () => {
 
       {/* Formulario (Superpuesto abajo en móvil, Derecha en escritorio) */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 relative bg-white dark:bg-zinc-950 rounded-t-[40px] md:rounded-none -mt-10 md:mt-0 z-10 shadow-[0_-20px_40px_rgba(0,0,0,0.1)] md:shadow-none">
-        
+
         {/* Toggle Tema */}
-        <button 
+        <button
           onClick={toggleTheme}
           className="absolute top-6 right-6 p-3 rounded-full bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:shadow-md transition-all"
         >
           {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
         </button>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="w-full max-w-[400px]"
@@ -90,8 +97,8 @@ export const LoginPage = () => {
               <label className="text-sm font-semibold text-slate-700 dark:text-zinc-300 ml-1">Correo Electrónico</label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                <input 
-                  type="email" 
+                <input
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="ejemplo@empresa.com"
@@ -108,15 +115,15 @@ export const LoginPage = () => {
               </div>
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                <input 
-                  type={showPassword ? 'text' : 'password'} 
+                <input
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full h-12 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl pl-12 pr-12 text-slate-900 dark:text-white placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
                   required
                 />
-                <button 
+                <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors"
@@ -128,7 +135,7 @@ export const LoginPage = () => {
 
             <AnimatePresence>
               {formError && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
@@ -159,6 +166,51 @@ export const LoginPage = () => {
             </p>
           </footer>
         </motion.div>
+
+        <AnimatePresence>
+          {blockedMessage && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 16 }}
+                className="absolute inset-x-6 top-1/2 z-20 mx-auto w-full max-w-md -translate-y-1/2 rounded-3xl border border-red-100 bg-white p-6 shadow-2xl dark:border-red-900/40 dark:bg-zinc-950"
+              >
+                <button
+                  type="button"
+                  onClick={() => setBlockedMessage(null)}
+                  className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+                >
+                  <X size={18} />
+                </button>
+
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-400">
+                  <AlertTriangle size={28} />
+                </div>
+
+                <h4 className="text-2xl font-bold text-slate-900 dark:text-white">Acceso temporalmente restringido</h4>
+                <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-zinc-300">{blockedMessage}</p>
+                <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-zinc-400">
+                  Por favor comuníquese con soporte para validar la información y reactivar el acceso.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setBlockedMessage(null)}
+                  className="mt-6 w-full rounded-2xl bg-red-600 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700"
+                >
+                  Entendido
+                </button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

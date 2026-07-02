@@ -34,11 +34,15 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const serverMessage = error.response?.data?.error;
+    const requestUrl = String(error.config?.url || '');
+    const isLoginRequest = requestUrl.includes('/auth/login');
 
     if (status === 401) {
+      if (isLoginRequest) return Promise.reject(error);
       _showToast?.('Tu sesión ha expirado. Por favor inicia sesión de nuevo.', 'error');
       _logout?.();
     } else if (status === 403) {
+      if (isLoginRequest) return Promise.reject(error);
       _showToast?.(serverMessage || 'No tienes permisos para realizar esta acción.', 'error');
     } else if (status === 404) {
       _showToast?.(serverMessage || 'El recurso solicitado no fue encontrado.', 'error');
