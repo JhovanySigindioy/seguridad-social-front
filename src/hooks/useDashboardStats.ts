@@ -4,6 +4,7 @@ import api from '../services/api/axios-instance';
 export interface DashboardStatsResponse {
   currentMonth: {
     total: number;
+    completed: number;
     paid: number;
     pending: number;
     inProcess: number;

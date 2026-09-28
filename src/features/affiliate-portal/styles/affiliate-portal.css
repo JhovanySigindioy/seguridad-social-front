@@ -1,0 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+.affiliate-portal-theme {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  --affiliate-primary: #1e40af;
+  --affiliate-primary-deep: #013575;
+  --affiliate-secondary: #3b82f6;
+  --affiliate-accent: #16a34a;
+  --affiliate-background: #eff6ff;
+  --affiliate-muted: #e9eff5;
+  --affiliate-border: #bfdbfe;
+}

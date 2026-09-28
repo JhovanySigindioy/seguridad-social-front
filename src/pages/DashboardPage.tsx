@@ -293,16 +293,20 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
     return affiliations;
   }, [affiliations, selectedOfficeId, activeOfficeId, isAdmin, offices]);
 
-  const { data: dashboardStats } = useDashboardStats(activeOfficeId || undefined, targetMonth, targetYear);
+   const dashboardOfficeId = isAdmin
+     ? (selectedOfficeId === 'all' ? undefined : selectedOfficeId)
+     : activeOfficeId || undefined;
+   const { data: dashboardStats } = useDashboardStats(dashboardOfficeId, targetMonth, targetYear);
 
   // Stats for current month
   const stats = useMemo(() => {
     if (!dashboardStats) return {
-      total: 0, paid: 0, pending: 0, inProcess: 0,
+      total: 0, completed: 0, paid: 0, pending: 0, inProcess: 0,
       overdue: 0, overdueValue: 0, currentRevenueTotal: 0, currentRevenuePaid: 0
     };
     return {
       total: dashboardStats.currentMonth.total,
+      completed: dashboardStats.currentMonth.completed,
       paid: dashboardStats.currentMonth.paid,
       pending: dashboardStats.currentMonth.pending,
       inProcess: dashboardStats.currentMonth.inProcess,
@@ -320,8 +324,8 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
 
   const completionPercentage = useMemo(() => {
     if (isLoading) return 0;
-    return Math.min(100, Math.round((stats.total / (targetGoal || 1)) * 100));
-  }, [stats.total, targetGoal, isLoading]);
+    return Math.min(100, Math.round((stats.completed / (targetGoal || 1)) * 100));
+  }, [stats.completed, targetGoal, isLoading]);
 
   // Trend data (last 6 months)
   const trendData = useMemo(() => {
@@ -339,8 +343,8 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
     return filteredAffiliations
       .filter((a: any) => {
         if (a.status !== 'Activo') return false;
-        const createdAt = new Date(a.created_at);
-        return (createdAt.getMonth() + 1) === targetMonth && createdAt.getFullYear() === targetYear;
+         const startDate = new Date(a.start_date);
+         return (startDate.getMonth() + 1) === targetMonth && startDate.getFullYear() === targetYear;
       })
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 8);
@@ -410,7 +414,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
               Meta del Mes: {targetGoal} Afiliaciones
             </h2>
             <p className="text-sm font-medium text-slate-500 dark:text-zinc-400 mt-1">
-              Se han registrado <span className="text-blue-600 dark:text-blue-400 font-bold">{stats.total}</span> afiliaciones
+              Se han confirmado <span className="text-blue-600 dark:text-blue-400 font-bold">{stats.completed}</span> pagos
             </p>
           </div>
         </div>

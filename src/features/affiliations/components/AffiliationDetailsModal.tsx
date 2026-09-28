@@ -1,7 +1,10 @@
 
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Building2, UserCircle, Briefcase, FileText, DollarSign } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
+import type { AffiliationItem } from '../types/affiliation.types';
+import { AffiliateDocumentsPanel } from '../../affiliate-documents/components/AffiliateDocumentsPanel';
 
 
 const formatDate = (value?: string | null) => {
@@ -27,10 +30,13 @@ const formatPhones = (phone1?: string | null, phone2?: string | null) => {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  data: any;
+  data: AffiliationItem | null;
+  initialTab?: 'details' | 'documents';
 }
 
-export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
+export const AffiliationDetailsModal = ({ isOpen, onClose, data, initialTab = 'details' }: Props) => {
+  const [activeTab, setActiveTab] = useState<'details' | 'documents'>(initialTab);
+
   if (!data) return null;
 
   return (
@@ -67,11 +73,11 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg border ${
-                      data.status === 'Inactivo'
+                      data.status !== 'Activo'
                         ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/30'
                         : 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30'
                     }`}>
-                      Estado: {data.status}
+                      Estado: {data.status === 'Activo' ? 'Vigente' : data.status}
                     </span>
                     <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold rounded-lg border border-emerald-100 dark:border-emerald-900/30">
                       Inicio: {formatDate(data.start_date)}
@@ -89,8 +95,19 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
               </div>
             </div>
 
+            <div className="flex-shrink-0 grid grid-cols-2 border-b border-slate-200 dark:border-zinc-800">
+              <button type="button" onClick={() => setActiveTab('details')} className={`px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'details' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'}`}>
+                Información
+              </button>
+              <button type="button" onClick={() => setActiveTab('documents')} className={`px-4 py-3 text-sm font-semibold transition-colors ${activeTab === 'documents' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'}`}>
+                Documentos
+              </button>
+            </div>
+
             {/* Body (Scrollable) */}
             <div className="flex-1 overflow-y-auto p-6 sm:p-8 custom-scrollbar space-y-8 min-h-0">
+              {activeTab === 'details' ? (
+                <>
 
               {/* Info Cliente y Empresa */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -219,6 +236,11 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data }: Props) => {
                     </div>
                   </div>
                 </div>
+              )}
+
+                </>
+              ) : (
+                <AffiliateDocumentsPanel affiliation={data} isOpen={isOpen} />
               )}
 
             </div>

@@ -254,8 +254,8 @@ const ResumenEjecutivo = ({
 };
 
 // ─── Ingresos por Oficina ──────────────────────────────────────────────────────
-const IngresosPorOficina = () => {
-  const { data: affiliations, isLoading } = useAffiliations();
+const IngresosPorOficina = ({ targetMonth, targetYear }: { targetMonth: number; targetYear: number }) => {
+  const { data: affiliations, isLoading } = useAffiliations(targetMonth, targetYear);
   const { offices } = useOffices();
   
   const officeStats = useMemo(() => {
@@ -263,25 +263,26 @@ const IngresosPorOficina = () => {
     
     return offices.map(office => {
       const officeAffiliations = affiliations.filter((a: any) => a.office_name === office.name);
-      const currentMonth = new Date().getMonth() + 1;
-      const currentYear = new Date().getFullYear();
-      const monthData = officeAffiliations.filter((a: any) => a.month === currentMonth && a.year === currentYear);
+       const monthData = officeAffiliations.filter((a: any) => a.month === targetMonth && a.year === targetYear);
       
-      const revenue = monthData.reduce((sum: number, a: any) => sum + Number(a.value), 0);
-      const paid = monthData.filter((a: any) => a.payment_status === 'Pagado').length;
-      const pending = monthData.filter((a: any) => a.payment_status === 'Pendiente').length;
+      const confirmedData = monthData.filter((a: any) => a.decision_status === 'Confirmada');
+      const revenue = confirmedData
+        .filter((a: any) => a.payment_status === 'Pagado')
+        .reduce((sum: number, a: any) => sum + Number(a.value), 0);
+      const paid = confirmedData.filter((a: any) => a.payment_status === 'Pagado').length;
+      const pending = confirmedData.filter((a: any) => a.payment_status === 'Pendiente').length;
       
       return {
         name: office.name,
         city: office.city,
         revenue,
-        total: monthData.length,
+        total: confirmedData.length,
         paid,
         pending,
-        collectionRate: monthData.length > 0 ? (paid / monthData.length) * 100 : 0,
+        collectionRate: confirmedData.length > 0 ? (paid / confirmedData.length) * 100 : 0,
       };
     }).sort((a, b) => b.revenue - a.revenue);
-  }, [affiliations, offices]);
+  }, [affiliations, offices, targetMonth, targetYear]);
   
   if (isLoading) {
     return <div className="animate-pulse space-y-4"><div className="h-64 bg-slate-100 dark:bg-zinc-800 rounded-2xl" /></div>;
@@ -600,7 +601,7 @@ export const ReportsPage = () => {
   const renderReport = () => {
     switch (activeReport) {
       case 'resumen': return <ResumenEjecutivo targetMonth={targetMonth} targetYear={targetYear} setTargetMonth={setTargetMonth} setTargetYear={setTargetYear} />;
-      case 'oficinas': return <IngresosPorOficina />;
+      case 'oficinas': return <IngresosPorOficina targetMonth={targetMonth} targetYear={targetYear} />;
       case 'comparativa': return <ComparativaMensual targetMonth={targetMonth} targetYear={targetYear} setTargetMonth={setTargetMonth} setTargetYear={setTargetYear} />;
       case 'servicios': return <DistribucionServicio />;
       default: return <ResumenEjecutivo targetMonth={targetMonth} targetYear={targetYear} setTargetMonth={setTargetMonth} setTargetYear={setTargetYear} />;

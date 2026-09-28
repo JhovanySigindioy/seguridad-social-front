@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage';
@@ -50,7 +51,7 @@ function App() {
             element={affiliateToken ? <AffiliatePortalPage /> : <Navigate to="/portal/login" />}
           />
           <Route
-            path="/portal/afiliacion/:affiliationId/:year/:month"
+            path="/portal/afiliacion/:affiliationId"
             element={affiliateToken ? <AffiliateAffiliationDetailPage /> : <Navigate to="/portal/login" />}
           />
           <Route

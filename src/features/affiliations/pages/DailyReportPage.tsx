@@ -160,7 +160,9 @@ export const DailyReportPage = () => {
   );
 
   const getAllowedStatuses = (role?: string): PaymentStatus[] => {
-    if (role === 'admin' || role === 'office_manager') return [...PAYMENT_STATUSES];
+    if (role === 'admin' || role === 'office_manager') {
+      return [...PAYMENT_STATUSES];
+    }
     return [];
   };
 

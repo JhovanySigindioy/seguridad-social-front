@@ -1,0 +1,23 @@
+import type { AffiliationItem } from '../features/affiliations/types/affiliation.types';
+import type { AffiliateDocument } from '../features/affiliate-documents/types/affiliate-document.types';
+
+export interface AffiliateAuthUser {
+  account_id: number;
+  client_id: number;
+  name: string;
+  email: string;
+  role: 'affiliate';
+  agency_id: number;
+  office_name: string;
+  identification: string;
+}
+
+export interface AffiliateLoginResponse {
+  token: string;
+  user: AffiliateAuthUser;
+}
+
+export interface AffiliatePortalData {
+  affiliations: AffiliationItem[];
+  documents: AffiliateDocument[];
+}

@@ -1,17 +1,19 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, Pencil, UserPlus, Trash2, Download, Loader2, Copy, CheckCircle2, Eye } from 'lucide-react';
+import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, UploadCloud, Pencil, UserPlus, Trash2, Download, Loader2, Copy, CheckCircle2, Eye, RotateCcw } from 'lucide-react';
 import api from '../../../services/api/axios-instance';
-import { useAffiliations, useUpdateAffiliationStatus } from '../hooks/useAffiliations';
+import { useAffiliations, useRenewAffiliation, useUpdateAffiliationStatus, useRejectAffiliationCandidate } from '../hooks/useAffiliations';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { PAYMENT_STATUSES, type AffiliationItem, type PaymentStatus } from '../types/affiliation.types';
+import { PAYMENT_STATUSES, type AffiliationItem, type PaymentDisplayStatus, type PaymentStatus } from '../types/affiliation.types';
 import { StatusBadge } from './StatusBadge';
 import { AffiliationDetailsModal } from './AffiliationDetailsModal';
 import { EditAffiliationModal } from './EditAffiliationModal';
 import { CloseAffiliationModal } from './CloseAffiliationModal';
 import { useClients } from '../../clients/hooks/useClients';
 
-const STATUS_STYLES: Record<PaymentStatus, {
+type TableStatus = PaymentDisplayStatus | 'No Continúa';
+
+const STATUS_STYLES: Record<TableStatus, {
   dot: string;
   select: string;
   filterActive: string;
@@ -35,10 +37,24 @@ const STATUS_STYLES: Record<PaymentStatus, {
     filterActive: 'border-emerald-500 bg-emerald-500 text-white shadow-sm shadow-emerald-500/20',
     filterIdle: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300',
   },
+  'Por Confirmar': {
+    dot: 'bg-slate-400',
+    select: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400',
+    filterActive: 'border-slate-500 bg-slate-500 text-white shadow-sm shadow-slate-500/20',
+    filterIdle: 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400',
+  },
+  'No Continúa': {
+    dot: 'bg-red-500',
+    select: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300',
+    filterActive: 'border-red-500 bg-red-500 text-white shadow-sm shadow-red-500/20',
+    filterIdle: 'border-red-200 bg-red-50 text-red-700 hover:border-red-300 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300',
+  },
 };
 
 const getAllowedStatuses = (role?: string): PaymentStatus[] => {
-  if (role === 'admin' || role === 'office_manager') return [...PAYMENT_STATUSES];
+  if (role === 'admin' || role === 'office_manager') {
+    return [...PAYMENT_STATUSES];
+  }
   return [];
 };
 
@@ -98,12 +114,15 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
 );
 
 const getDisplayObservation = (item: AffiliationItem) => {
-  if (item.status === 'Inactivo') {
+  if (item.status !== 'Activo') {
     return item.withdrawal_observations || item.observation || null;
   }
 
   return item.observation || null;
 };
+
+const isPendingDecision = (item: AffiliationItem) =>
+  item.decision_status === 'Por Confirmar' || item.payment_status === 'Por Confirmar';
 
 interface AffiliationsTableProps {
   onNewAffiliation?: () => void;
@@ -119,11 +138,14 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
   const { data: clients } = useClients();
   const { user } = useAuthStore();
   const updateStatus = useUpdateAffiliationStatus();
+  const renewAffiliation = useRenewAffiliation();
+  const rejectAffiliationCandidate = useRejectAffiliationCandidate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<string>('id');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<AffiliationItem | null>(null);
+  const [selectedTab, setSelectedTab] = useState<'details' | 'documents'>('details');
   const [editingItem, setEditingItem] = useState<AffiliationItem | null>(null);
   const [closingItem, setClosingItem] = useState<AffiliationItem | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
@@ -154,7 +176,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
     if (!affiliations) return [];
     return affiliations
       .filter(a => {
-        const isInactive = a.status === 'Inactivo';
+        const isInactive = a.status !== 'Activo';
         if (defaultTab === 'activas' && isInactive) return false;
         if (defaultTab === 'inactivas' && !isInactive) return false;
 
@@ -164,7 +186,12 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
           a.company_name.toLowerCase().includes(search.toLowerCase()) ||
           (getDisplayObservation(a)?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
           (a.withdrawal_reason?.toLowerCase().includes(search.toLowerCase()) ?? false);
-        const matchStatus = statusFilter === 'all' || a.payment_status === statusFilter;
+        const displayStatus: TableStatus = isPendingDecision(a)
+          ? 'Por Confirmar'
+          : a.decision_status === 'No Continúa'
+            ? 'No Continúa'
+            : a.payment_status;
+        const matchStatus = statusFilter === 'all' || displayStatus === statusFilter;
         return matchSearch && matchStatus;
       })
       .sort((a: any, b: any) => {
@@ -190,15 +217,26 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
     setCurrentPage(1);
   };
 
-  const getStatusOptions = (currentStatus: PaymentStatus) => {
-    return allowedStatusOptions.includes(currentStatus)
-      ? allowedStatusOptions
-      : [currentStatus, ...allowedStatusOptions];
+  const getStatusOptions = (): PaymentDisplayStatus[] => [
+    'Por Confirmar',
+    'Pendiente',
+    'En Proceso',
+    'Pagado',
+  ];
+
+  const isStatusOptionDisabled = (item: AffiliationItem, status: PaymentDisplayStatus) => {
+    if (item.decision_status === 'No Continúa') return true;
+    if (status === 'Por Confirmar') return !isPendingDecision(item);
+    if (item.payment_status === 'Pagado') return status !== 'Pagado';
+    if (item.payment_status === 'En Proceso') return status === 'Pendiente';
+    return false;
   };
 
-  const handleStatusChange = (item: AffiliationItem, paymentStatus: PaymentStatus) => {
+  const handleStatusChange = (item: AffiliationItem, paymentStatus: TableStatus) => {
+    if (!PAYMENT_STATUSES.includes(paymentStatus as PaymentStatus)) return;
     const currentPaymentStatus = item.payment_status;
     if (currentPaymentStatus === paymentStatus) return;
+    const nextPaymentStatus = paymentStatus as PaymentStatus;
 
     setStatusError(null);
     setUpdatingStatusId(item.id);
@@ -206,7 +244,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
     updateStatus.mutate(
       { 
         id: item.id, 
-        payment_status: paymentStatus, 
+        payment_status: nextPaymentStatus,
         month: item.month || filterMonth, 
         year: item.year || filterYear 
       },
@@ -221,7 +259,21 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
     );
   };
 
-  const getFilterClassName = (status: 'all' | PaymentStatus) => {
+  const handleRenew = (item: AffiliationItem) => {
+    if (!window.confirm(`¿Crear la afiliación del periodo siguiente para ${item.client_name}?`)) return;
+    renewAffiliation.mutate(item.id, {
+      onError: (error: any) => setStatusError(error.response?.data?.error || 'No se pudo crear la renovación.'),
+    });
+  };
+
+  const handleRejectCandidate = (item: AffiliationItem) => {
+    if (!window.confirm(`¿Marcar como no continua la afiliación de ${item.client_name}?`)) return;
+    rejectAffiliationCandidate.mutate({ id: item.id, reason: 'Voluntario' }, {
+      onError: (error: any) => setStatusError(error.response?.data?.error || 'No se pudo registrar la no continuidad.'),
+    });
+  };
+
+  const getFilterClassName = (status: 'all' | TableStatus) => {
     const base = 'px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all';
     const isActive = statusFilter === status;
 
@@ -355,7 +407,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
       {/* Count + Filters: 2 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-center">
         <div className="flex items-center gap-2">
-          {(['all', 'Pendiente', 'En Proceso', 'Pagado'] as const).map(s => (
+          {(['all', 'Por Confirmar', 'Pendiente', 'En Proceso', 'Pagado'] as const).map(s => (
             <button
               key={s}
               onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
@@ -398,6 +450,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
             <tr className="border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50">
               {[
                 { label: '#', field: '' },
+                { label: 'Documentos', field: '' },
                 { label: 'Cliente', field: 'client_name' },
                 { label: 'Empresa', field: 'company_name' },
                 { label: 'Oficina', field: 'office_name', hideForManager: true },
@@ -424,7 +477,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="border-b border-slate-50 dark:border-zinc-800/60">
-                  {Array.from({ length: 10 }).map((_, j) => (
+                   {Array.from({ length: 11 }).map((_, j) => (
                     <td key={j} className="px-4 py-3.5">
                       <div className="h-3 bg-slate-100 dark:bg-zinc-800 rounded-full animate-pulse" style={{ width: `${60 + Math.random() * 40}%` }} />
                     </td>
@@ -433,7 +486,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-20 text-slate-400">
+                 <td colSpan={11} className="text-center py-20 text-slate-400">
                   <FileText size={40} className="mx-auto mb-3 opacity-30" />
                   <p>No se encontraron afiliaciones</p>
                 </td>
@@ -454,6 +507,16 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                   >
                     <td className="px-4 py-3.5 text-xs text-slate-400 font-medium">
                       {(currentPage - 1) * itemsPerPage + index + 1}
+                    </td>
+                    <td className="px-4 py-3.5 text-center" onClick={event => event.stopPropagation()}>
+                      <button
+                        onClick={() => { setSelectedTab('documents'); setSelectedItem(item); }}
+                        className="inline-flex rounded-lg p-2 text-slate-400 transition-colors hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-900/30"
+                        title="Ver y subir documentos"
+                        aria-label={`Ver y subir documentos de ${item.client_name}`}
+                      >
+                        <UploadCloud size={21} />
+                      </button>
                     </td>
                     <td className="px-4 py-3.5">
                       <div>
@@ -514,8 +577,12 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
 
                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
                       {(() => {
-                        const currentPaymentStatus = item.payment_status;
-                        return canChangeStatus ? (
+                         const currentPaymentStatus: TableStatus = isPendingDecision(item)
+                           ? 'Por Confirmar'
+                           : item.decision_status === 'No Continúa'
+                             ? 'No Continúa'
+                             : item.payment_status;
+                         return canChangeStatus && item.decision_status !== 'No Continúa' ? (
                           <div
                             title="Cambiar estado"
                             className={`inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${STATUS_STYLES[currentPaymentStatus].select}`}
@@ -525,11 +592,11 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                               aria-label="Cambiar estado"
                               value={currentPaymentStatus}
                               disabled={updatingStatusId === item.id}
-                              onChange={event => handleStatusChange(item, event.target.value as PaymentStatus)}
+                               onChange={event => handleStatusChange(item, event.target.value as TableStatus)}
                               className="min-w-[90px] cursor-pointer bg-transparent text-xs font-semibold outline-none disabled:cursor-wait disabled:opacity-60"
                             >
-                              {getStatusOptions(currentPaymentStatus).map(status => (
-                                <option key={status} value={status}>
+                               {getStatusOptions().map(status => (
+                                 <option key={status} value={status} disabled={isStatusOptionDisabled(item, status)}>
                                   {status}
                                 </option>
                               ))}
@@ -544,16 +611,36 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                       <div className="truncate text-xs text-slate-500 dark:text-zinc-400" title={getDisplayObservation(item) || 'Sin observaciones'}>
                         {getDisplayObservation(item) || '—'}
                       </div>
-                      {item.status === 'Inactivo' && item.withdrawal_reason && (
+                       {item.status !== 'Activo' && item.withdrawal_reason && (
                         <div className="mt-1 text-[11px] font-medium text-red-500 dark:text-red-400">
                           Motivo: {item.withdrawal_reason}
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
-                      <div className="flex items-center gap-2">
+                     <td className="px-4 py-3.5" onClick={event => event.stopPropagation()}>
+                       <div className="flex items-center gap-2">
+                          {isPendingDecision(item) ? (
+                            <>
+                              <button
+                                onClick={() => handleRejectCandidate(item)}
+                                disabled={rejectAffiliationCandidate.isPending}
+                               className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+                               title="Marcar como no continua"
+                             >
+                               <Trash2 size={15} />
+                             </button>
+                           </>
+                         ) : null}
+                         <button
+                          onClick={() => handleRenew(item)}
+                          disabled={renewAffiliation.isPending || item.status === 'Activo'}
+                          className={`p-1.5 rounded-lg transition-colors ${item.status === 'Activo' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-900/30'}`}
+                          title={item.status === 'Activo' ? 'La afiliación ya está vigente' : 'Renovar para el siguiente mes'}
+                        >
+                          <RotateCcw size={15} />
+                        </button>
                         <button
-                          onClick={() => setSelectedItem(item)}
+                          onClick={() => { setSelectedTab('details'); setSelectedItem(item); }}
                           className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors"
                           title="Ver detalle completo"
                         >
@@ -562,7 +649,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                         <button
                           onClick={() => setEditingItem(item)}
                           className="p-1.5 rounded-lg transition-colors text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
-                          title={item.status === 'Inactivo' ? 'Editar afiliación retirada' : 'Editar afiliación'}
+                           title={item.status !== 'Activo' ? 'Editar afiliación cerrada' : 'Editar afiliación'}
                         >
                           <Pencil size={15} />
                         </button>
@@ -583,10 +670,10 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                           {downloadingId === item.id ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
                         </button>
                         <button
-                          onClick={() => item.status !== 'Inactivo' && setClosingItem(item)}
-                          disabled={item.status === 'Inactivo'}
-                          className={`p-1.5 rounded-lg transition-colors ${item.status === 'Inactivo' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30'}`}
-                          title={item.status === 'Inactivo' ? 'Ya está retirada' : 'Retirar afiliación'}
+                           onClick={() => item.status === 'Activo' && setClosingItem(item)}
+                           disabled={item.status !== 'Activo'}
+                           className={`p-1.5 rounded-lg transition-colors ${item.status !== 'Activo' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30'}`}
+                           title={item.status !== 'Activo' ? 'La afiliación ya no está vigente' : 'Retirar afiliación'}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -629,8 +716,10 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
       </div>
 
       <AffiliationDetailsModal
+        key={`${selectedItem?.id ?? 'none'}-${selectedTab}`}
         isOpen={!!selectedItem}
         data={selectedItem}
+        initialTab={selectedTab}
         onClose={() => setSelectedItem(null)}
       />
 
