@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, UploadCloud, Pencil, UserPlus, Trash2, Download, Loader2, Copy, CheckCircle2, Eye, RotateCcw } from 'lucide-react';
+import { Search, RefreshCw, ChevronUp, ChevronDown, AlertCircle, FileText, UploadCloud, Pencil, UserPlus, Trash2, Download, Loader2, Copy, CheckCircle2 } from 'lucide-react';
 import api from '../../../services/api/axios-instance';
-import { useAffiliations, useRenewAffiliation, useUpdateAffiliationStatus, useRejectAffiliationCandidate } from '../hooks/useAffiliations';
+import { useAffiliations, useUpdateAffiliationStatus, useRejectAffiliationCandidate } from '../hooks/useAffiliations';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { PAYMENT_STATUSES, type AffiliationItem, type PaymentDisplayStatus, type PaymentStatus } from '../types/affiliation.types';
 import { StatusBadge } from './StatusBadge';
@@ -138,7 +138,6 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
   const { data: clients } = useClients();
   const { user } = useAuthStore();
   const updateStatus = useUpdateAffiliationStatus();
-  const renewAffiliation = useRenewAffiliation();
   const rejectAffiliationCandidate = useRejectAffiliationCandidate();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -257,13 +256,6 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
         },
       }
     );
-  };
-
-  const handleRenew = (item: AffiliationItem) => {
-    if (!window.confirm(`¿Crear la afiliación del periodo siguiente para ${item.client_name}?`)) return;
-    renewAffiliation.mutate(item.id, {
-      onError: (error: any) => setStatusError(error.response?.data?.error || 'No se pudo crear la renovación.'),
-    });
   };
 
   const handleRejectCandidate = (item: AffiliationItem) => {
@@ -631,21 +623,6 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                              </button>
                            </>
                          ) : null}
-                         <button
-                          onClick={() => handleRenew(item)}
-                          disabled={renewAffiliation.isPending || item.status === 'Activo'}
-                          className={`p-1.5 rounded-lg transition-colors ${item.status === 'Activo' ? 'text-slate-300 dark:text-zinc-700 cursor-not-allowed' : 'text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-900/30'}`}
-                          title={item.status === 'Activo' ? 'La afiliación ya está vigente' : 'Renovar para el siguiente mes'}
-                        >
-                          <RotateCcw size={15} />
-                        </button>
-                        <button
-                          onClick={() => { setSelectedTab('details'); setSelectedItem(item); }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors"
-                          title="Ver detalle completo"
-                        >
-                          <Eye size={15} />
-                        </button>
                         <button
                           onClick={() => setEditingItem(item)}
                           className="p-1.5 rounded-lg transition-colors text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"

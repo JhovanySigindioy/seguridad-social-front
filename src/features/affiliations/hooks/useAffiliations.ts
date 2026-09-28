@@ -89,32 +89,6 @@ export const useUpdateAffiliationStatus = () => {
   });
 };
 
-export const useRenewAffiliation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: number) => {
-      const { data } = await api.post(`/affiliations/${id}/renew`, {});
-      return data.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['affiliations'] });
-    },
-  });
-};
-
-export const useConfirmAffiliation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: number) => {
-      const { data } = await api.post(`/affiliations/${id}/confirm`);
-      return data.data;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['affiliations'] }),
-  });
-};
-
 export const useRejectAffiliationCandidate = () => {
   const queryClient = useQueryClient();
 
