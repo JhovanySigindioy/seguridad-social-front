@@ -18,6 +18,7 @@ import { useClients } from '../features/clients/hooks/useClients';
 import { ReportsPage } from '../features/reports/pages/ReportsPage';
 import { NewCompanyPage } from '../features/companies/pages/NewCompanyPage';
 import { NewOfficePage } from '../features/offices/pages/NewOfficePage';
+import { AffiliateAccountsPage } from '../features/affiliate-accounts/pages/AffiliateAccountsPage';
 import { useAffiliations } from '../features/affiliations/hooks/useAffiliations';
 import { useOffices } from '../features/offices/hooks/useOffices';
 import { useDashboardStats } from '../hooks/useDashboardStats';
@@ -36,7 +37,15 @@ const NAV_ITEMS = [
       { id: 'retired', label: 'Retirados' }
     ]
   },
-  { id: 'clients', label: 'Clientes', icon: UserPlus },
+  {
+    id: 'clients-menu',
+    label: 'Clientes',
+    icon: UserPlus,
+    subItems: [
+      { id: 'clients', label: 'Listado de clientes' },
+      { id: 'affiliate-accounts', label: 'Accesos al portal' },
+    ],
+  },
   {
     id: 'admin-menu',
     label: 'Administracion',
@@ -580,6 +589,7 @@ const Sidebar = ({
 
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     'affiliations-menu': ['affiliations', 'daily-report', 'retired'].includes(activeTab),
+    'clients-menu': ['clients', 'affiliate-accounts'].includes(activeTab),
     'admin-menu': ['admin-companies', 'admin-offices'].includes(activeTab)
   });
 
@@ -746,7 +756,8 @@ export const DashboardPage = ({ tab }: DashboardPageProps = {}) => {
       case 'affiliations': return <AffiliationsPage onNewAffiliation={() => setActiveTab('new-affiliation')} />;
       case 'daily-report': return <DailyReportPage />;
       case 'new-affiliation': return <NewAffiliationPage onCancel={() => setActiveTab('affiliations')} onSuccess={() => setActiveTab('affiliations')} />;
-      case 'clients': return <ClientsPage />;
+       case 'clients': return <ClientsPage />;
+       case 'affiliate-accounts': return <AffiliateAccountsPage />;
       case 'retired': return <AffiliationsTable defaultTab="inactivas" />;
       case 'admin-companies': return isAdmin ? <NewCompanyPage /> : <DashboardHome user={user} activeOfficeId={activeOfficeId} />;
       case 'admin-offices': return isAdmin ? <NewOfficePage /> : <DashboardHome user={user} activeOfficeId={activeOfficeId} />;

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import affiliateApi from '../../../services/api/affiliate-axios';
 import type { AffiliateAuthUser } from '../../../types/affiliate-auth.types';
 import type { AffiliationItem } from '../../affiliations/types/affiliation.types';
@@ -37,5 +38,22 @@ export const useAffiliateDocuments = (enabled = true) => {
     },
     enabled,
     staleTime: 1000 * 60,
+  });
+};
+
+export const useChangeAffiliatePassword = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => {
+      const { data } = await affiliateApi.patch('/affiliate/auth/password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['affiliate', 'me'] });
+    },
   });
 };

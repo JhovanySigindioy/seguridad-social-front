@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut, Menu, ShieldCheck, X } from 'lucide-react';
+import { KeyRound, LogOut, Menu, ShieldCheck, X } from 'lucide-react';
 import { useAffiliateAuthStore } from '../../../store/useAffiliateAuthStore';
 import type { AffiliateAuthUser } from '../../../types/affiliate-auth.types';
 import '../styles/affiliate-portal.css';
+import { ChangeAffiliatePasswordModal } from './ChangeAffiliatePasswordModal';
 
 interface Props {
   user: AffiliateAuthUser | null;
@@ -29,6 +30,11 @@ export const AffiliatePortalShell = ({
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(Boolean(user?.must_change_password));
+
+  useEffect(() => {
+    if (user?.must_change_password) setPasswordOpen(true);
+  }, [user?.must_change_password]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -98,6 +104,7 @@ export const AffiliatePortalShell = ({
               <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{user?.email || 'Sin correo'}</p>
               <p className="text-xs text-slate-500 dark:text-zinc-400">{user?.identification || 'Sin identificacion'} · {user?.office_name || 'Sin sede'}</p>
             </div>
+            <button type="button" onClick={() => setPasswordOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-[#013575] dark:border-zinc-700 dark:text-zinc-200"><KeyRound size={16} /> Cambiar contraseña</button>
             <button
               type="button"
               onClick={logout}
@@ -190,6 +197,7 @@ export const AffiliatePortalShell = ({
                       <div className="space-y-2">{aside}</div>
                     </div>
                   ) : null}
+                  <button type="button" onClick={() => { setPasswordOpen(true); setMenuOpen(false); }} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-[#013575] dark:border-zinc-700 dark:text-zinc-200"><KeyRound size={16} /> Cambiar contraseña</button>
                 </div>
               </div>
 
@@ -221,6 +229,7 @@ export const AffiliatePortalShell = ({
       ) : null}
 
       <main className={`w-full px-0 ${hideHero ? 'py-0' : 'py-4 sm:py-5 lg:py-6'}`}>{children}</main>
+      <ChangeAffiliatePasswordModal isOpen={passwordOpen} required={Boolean(user?.must_change_password)} onClose={() => setPasswordOpen(false)} />
     </div>
   );
 };

@@ -10,6 +10,7 @@ export interface AffiliateAuthUser {
   agency_id: number;
   office_name: string;
   identification: string;
+  must_change_password: boolean;
 }
 
 export interface AffiliateLoginResponse {

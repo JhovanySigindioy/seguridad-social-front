@@ -66,6 +66,10 @@ function App() {
             element={token ? <DashboardPage tab="affiliations" /> : <Navigate to="/login" />} 
           />
           <Route
+            path="/affiliate-accounts"
+            element={token ? <DashboardPage tab="affiliate-accounts" /> : <Navigate to="/login" />}
+          />
+          <Route
             path="/admin/companies/new"
             element={token && isAdmin ? <DashboardPage tab="admin-companies" /> : <Navigate to="/" />}
           />
