@@ -1,27 +1,31 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../../services/api/axios-instance';
-import type { AffiliateAccountRow, CreateAffiliateAccountResponse } from '../types/affiliate-account.types';
+import type { AffiliateAccountsResponse, CreateAffiliateAccountResponse } from '../types/affiliate-account.types';
 
 interface Filters {
   officeId?: number;
   search?: string;
   status?: string;
   paidOnly?: boolean;
+  page?: number;
+  pageSize?: number;
 }
 
 export const useAffiliateAccounts = (filters: Filters) => {
   return useQuery({
     queryKey: ['affiliate-accounts', filters],
-    queryFn: async (): Promise<AffiliateAccountRow[]> => {
+    queryFn: async (): Promise<AffiliateAccountsResponse> => {
       const { data } = await api.get('/affiliate-accounts', {
         params: {
           office_id: filters.officeId,
           search: filters.search || undefined,
           status: filters.status === 'all' ? undefined : filters.status,
           paid_only: filters.paidOnly ? 'true' : 'false',
+          page: filters.page,
+          page_size: filters.pageSize,
         },
       });
-      return data.data;
+      return data.data as AffiliateAccountsResponse;
     },
     staleTime: 30_000,
   });

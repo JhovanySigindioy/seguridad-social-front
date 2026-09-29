@@ -1,34 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
-import { BriefcaseBusiness, CalendarRange, Download, Eye, FileText, Loader2 } from 'lucide-react';
+import { BriefcaseBusiness, CalendarRange, Download, ExternalLink, FileText, Loader2 } from 'lucide-react';
 import { Navigate, useParams } from 'react-router-dom';
 import affiliateApi from '../services/api/affiliate-axios';
 import { useAffiliateAuthStore } from '../store/useAffiliateAuthStore';
 import { useAffiliateAffiliations, useAffiliateDocuments, useAffiliateMe } from '../features/affiliate-portal/hooks/useAffiliatePortal';
 import { AffiliatePortalShell } from '../features/affiliate-portal/components/AffiliatePortalShell';
 import { useToast } from '../components/Toast';
-import { DocumentPreviewModal } from '../features/affiliate-portal/components/DocumentPreviewModal';
 import {
   formatDate,
   formatFileSize,
   formatMoney,
   getAffiliationPeriodLabel,
   getDocumentsForAffiliation,
-  isDocumentPreviewable,
 } from '../features/affiliate-portal/utils/affiliate-portal.helpers';
-
-interface PreviewState {
-  title: string;
-  mimeType: string;
-  objectUrl: string | null;
-}
 
 export const AffiliateAffiliationDetailPage = () => {
   const { affiliationId, year, month } = useParams();
   const { showToast } = useToast();
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
-  const [previewingId, setPreviewingId] = useState<number | null>(null);
-  const [preview, setPreview] = useState<PreviewState | null>(null);
+  const [openingId, setOpeningId] = useState<number | null>(null);
   const fallbackUser = useAffiliateAuthStore((state) => state.user);
   const { data: me } = useAffiliateMe(true);
   const { data: affiliations, isLoading: loadingAffiliations } = useAffiliateAffiliations(true);
@@ -59,14 +50,6 @@ export const AffiliateAffiliationDetailPage = () => {
     ].filter((service) => service.value && service.value !== '—');
   })();
 
-  useEffect(() => {
-    return () => {
-      if (preview?.objectUrl) {
-        window.URL.revokeObjectURL(preview.objectUrl);
-      }
-    };
-  }, [preview]);
-
   if (affiliationId && (!Number.isInteger(parsedAffiliationId) || parsedAffiliationId <= 0)) {
     return <Navigate to="/portal" replace />;
   }
@@ -74,14 +57,6 @@ export const AffiliateAffiliationDetailPage = () => {
   if (!loadingAffiliations && !selectedAffiliation) {
     return <Navigate to="/portal" replace />;
   }
-
-  const closePreview = () => {
-    if (preview?.objectUrl) {
-      window.URL.revokeObjectURL(preview.objectUrl);
-    }
-
-    setPreview(null);
-  };
 
   const handleDownload = async (documentId: number, originalName: string) => {
     try {
@@ -106,24 +81,31 @@ export const AffiliateAffiliationDetailPage = () => {
     }
   };
 
-  const handlePreview = async (documentId: number, title: string, mimeType: string) => {
+  const handleOpen = async (documentId: number) => {
+    const newWindow = window.open('', '_blank');
+
+    if (!newWindow) {
+      showToast('Permite las ventanas emergentes para abrir el archivo.');
+      return;
+    }
+
     try {
-      setPreviewingId(documentId);
+      setOpeningId(documentId);
       const response = await affiliateApi.get(`/affiliate/documents/${documentId}/download`, {
         responseType: 'blob',
       });
 
-      if (preview?.objectUrl) {
-        window.URL.revokeObjectURL(preview.objectUrl);
-      }
-
-      const objectUrl = window.URL.createObjectURL(new Blob([response.data], { type: mimeType }));
-      setPreview({ title, mimeType, objectUrl });
+      const objectUrl = window.URL.createObjectURL(new Blob([response.data], {
+        type: String(response.headers['content-type'] || 'application/octet-stream'),
+      }));
+      newWindow.location.href = objectUrl;
+      window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 60_000);
     } catch (error: unknown) {
+      newWindow.close();
       const message = axios.isAxiosError(error) ? error.response?.data?.error : undefined;
-      showToast(message || 'No fue posible abrir la vista previa.');
+      showToast(message || 'No fue posible abrir el archivo.');
     } finally {
-      setPreviewingId(null);
+      setOpeningId(null);
     }
   };
 
@@ -143,8 +125,8 @@ export const AffiliateAffiliationDetailPage = () => {
             <div className="h-56 animate-pulse bg-slate-100 dark:bg-zinc-900" />
           </div>
         ) : (
-          <div className="w-full space-y-5 px-0 pb-5 sm:space-y-6 sm:px-5 sm:pb-8 lg:mx-auto lg:max-w-6xl lg:px-0">
-            <section className="overflow-hidden bg-white dark:bg-zinc-950 lg:rounded-3xl lg:border lg:border-slate-200 lg:shadow-sm dark:lg:border-zinc-800">
+          <div className="w-full md:mt-6 space-y-5 px-0 pb-5 sm:space-y-6 sm:px-5 sm:pb-8 lg:mx-auto lg:max-w-6xl lg:px-0">
+            <section className="bg-white dark:bg-zinc-950 lg:overflow-hidden lg:rounded-3xl lg:border lg:border-slate-200 lg:shadow-sm dark:lg:border-zinc-800">
               <div className="bg-[linear-gradient(135deg,_#013575_0%,_#0b468f_100%)] px-4 py-5 text-white sm:px-5 sm:py-6 lg:px-8">
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
@@ -207,10 +189,7 @@ export const AffiliateAffiliationDetailPage = () => {
 
                 {selectedDocuments.length > 0 ? (
                   <div className="divide-y divide-slate-200 dark:divide-zinc-800">
-                    {selectedDocuments.map((portalDocument) => {
-                      const canPreview = isDocumentPreviewable(portalDocument.mime_type);
-
-                      return (
+                    {selectedDocuments.map((portalDocument) => (
                         <div key={portalDocument.id} className="group flex items-center justify-between gap-3 px-4 py-4 transition hover:bg-slate-50 dark:hover:bg-zinc-900/50 sm:px-5">
                           <div className="flex min-w-0 items-center gap-3">
                             <div className="flex h-11 w-11 shrink-0 items-center justify-center text-red-600 dark:text-red-300">
@@ -229,17 +208,15 @@ export const AffiliateAffiliationDetailPage = () => {
                           </div>
 
                           <div className="flex shrink-0 items-center gap-2">
-                            {canPreview ? (
-                              <button
-                                type="button"
-                                onClick={() => handlePreview(portalDocument.id, portalDocument.display_name, portalDocument.mime_type)}
-                                disabled={previewingId === portalDocument.id}
-                                className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-[#013575] hover:text-[#013575] disabled:cursor-wait disabled:opacity-70 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-indigo-200"
-                                aria-label="Ver archivo"
-                              >
-                                {previewingId === portalDocument.id ? <Loader2 size={16} className="animate-spin" /> : <Eye size={16} />}
-                              </button>
-                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => handleOpen(portalDocument.id)}
+                              disabled={openingId === portalDocument.id}
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-[#013575] hover:text-[#013575] disabled:cursor-wait disabled:opacity-70 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-indigo-200"
+                              aria-label="Abrir archivo"
+                            >
+                              {openingId === portalDocument.id ? <Loader2 size={16} className="animate-spin" /> : <ExternalLink size={16} />}
+                            </button>
 
                             <button
                               type="button"
@@ -252,8 +229,7 @@ export const AffiliateAffiliationDetailPage = () => {
                             </button>
                           </div>
                         </div>
-                      );
-                    })}
+                    ))}
                   </div>
                 ) : (
                   <div className="px-6 py-14 text-center">
@@ -267,13 +243,6 @@ export const AffiliateAffiliationDetailPage = () => {
         )}
       </AffiliatePortalShell>
 
-      <DocumentPreviewModal
-        isOpen={Boolean(preview?.objectUrl)}
-        title={preview?.title || 'Vista previa'}
-        mimeType={preview?.mimeType || ''}
-        objectUrl={preview?.objectUrl || null}
-        onClose={closePreview}
-      />
     </>
   );
 };

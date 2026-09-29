@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Copy, KeyRound, Loader2, Search, ShieldCheck, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Copy, KeyRound, Loader2, Search, ShieldCheck, X } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useOffices } from '../../offices/hooks/useOffices';
 import { useAffiliateAccounts, useCreateAffiliateAccount, useResetAffiliateAccountPassword } from '../hooks/useAffiliateAccounts';
@@ -25,22 +25,19 @@ export const AffiliateAccountsPage = () => {
   const [search, setSearch] = useState('');
   const [officeId, setOfficeId] = useState<number | undefined>();
   const [status, setStatus] = useState('all');
+  const [page, setPage] = useState(1);
   const [selectedClient, setSelectedClient] = useState<AffiliateAccountRow | null>(null);
   const [email, setEmail] = useState('');
   const [credentials, setCredentials] = useState<{ email: string; password: string; clientName: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  const filters = useMemo(() => ({ officeId, search, status, paidOnly: true }), [officeId, search, status]);
-  const { data: accounts = [], isLoading, isError, refetch } = useAffiliateAccounts(filters);
+  const filters = useMemo(() => ({ officeId, search, status, paidOnly: false, page, pageSize: 25 }), [officeId, search, status, page]);
+  const { data, isLoading, isError, refetch } = useAffiliateAccounts(filters);
+  const accounts = data?.items || [];
   const createAccount = useCreateAffiliateAccount();
   const resetPassword = useResetAffiliateAccountPassword();
 
-  const summary = useMemo(() => ({
-    total: accounts.length,
-    active: accounts.filter(item => item.account_status === 'active').length,
-    pending: accounts.filter(item => !item.account_id).length,
-    blocked: accounts.filter(item => item.account_status === 'blocked').length,
-  }), [accounts]);
+  const summary = data?.summary || { total: 0, activeAccounts: 0, clientsWithoutAccount: 0, clientsWithActiveAffiliation: 0 };
 
   const openCreate = (item: AffiliateAccountRow) => {
     setSelectedClient(item);
@@ -88,10 +85,10 @@ export const AffiliateAccountsPage = () => {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          ['Clientes elegibles', summary.total, 'text-indigo-600'],
-          ['Cuentas activas', summary.active, 'text-emerald-600'],
-          ['Sin cuenta', summary.pending, 'text-amber-600'],
-          ['Bloqueadas', summary.blocked, 'text-red-600'],
+           ['Clientes', summary.total, 'text-indigo-600'],
+           ['Con afiliación activa', summary.clientsWithActiveAffiliation, 'text-emerald-600'],
+           ['Sin cuenta', summary.clientsWithoutAccount, 'text-amber-600'],
+           ['Cuentas activas', summary.activeAccounts, 'text-red-600'],
         ].map(([label, value, color]) => (
           <div key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">{label}</p>
@@ -103,15 +100,15 @@ export const AffiliateAccountsPage = () => {
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 lg:flex-row">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar por nombre, identificación o correo..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-indigo-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+           <input value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="Buscar por nombre, identificación o correo..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-indigo-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
         </div>
         {isAdmin && (
-          <select value={officeId || ''} onChange={event => setOfficeId(event.target.value ? Number(event.target.value) : undefined)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+           <select value={officeId || ''} onChange={event => { setOfficeId(event.target.value ? Number(event.target.value) : undefined); setPage(1); }} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
             <option value="">Todas las oficinas</option>
             {offices.map(office => <option key={office.id} value={office.id}>{office.name}</option>)}
           </select>
         )}
-        <select value={status} onChange={event => setStatus(event.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+         <select value={status} onChange={event => { setStatus(event.target.value); setPage(1); }} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
           <option value="all">Todos los estados</option>
           <option value="none">Sin cuenta</option>
           <option value="active">Activa</option>
@@ -132,15 +129,25 @@ export const AffiliateAccountsPage = () => {
                 <tr key={item.client_id} className="border-b border-slate-100 last:border-0 dark:border-zinc-800">
                   <td className="px-4 py-4"><p className="font-bold text-slate-800 dark:text-white">{item.client_name}</p><p className="text-xs text-slate-500">{item.identification}</p></td>
                   <td className="px-4 py-4 text-slate-600 dark:text-zinc-300">{item.office_name}</td>
-                  <td className="px-4 py-4">{item.last_paid_month && item.last_paid_year ? <><p className="font-semibold text-emerald-600">{months[item.last_paid_month - 1]} {item.last_paid_year}</p><p className="text-xs text-slate-400">{item.confirmed_affiliation_count} periodo(s) confirmado(s)</p></> : <span className="text-slate-400">Sin pago</span>}</td>
+                   <td className="px-4 py-4">{item.last_paid_month && item.last_paid_year ? <><p className="font-semibold text-emerald-600">{months[item.last_paid_month - 1]} {item.last_paid_year}</p><p className="text-xs text-slate-400">{item.confirmed_affiliation_count} periodo(s) confirmado(s)</p></> : <span className="text-slate-400">Sin pago</span>}<p className={`mt-1 text-xs font-semibold ${item.eligible ? 'text-emerald-600' : 'text-slate-400'}`}>{item.eligible ? 'Puede iniciar sesión' : 'Sin afiliación activa'}</p></td>
                   <td className="px-4 py-4">{item.account_id ? <><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${item.account_status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{statusLabel(item.account_status)}</span><p className="mt-1 text-xs text-slate-500">{item.account_email}</p></> : <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">Sin cuenta</span>}</td>
                   <td className="px-4 py-4 text-slate-500">{item.created_by_name || 'Pendiente'}</td>
-                  <td className="px-4 py-4">{!item.account_id && item.eligible && user?.role !== 'viewer' ? <button onClick={() => openCreate(item)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700"><KeyRound size={14} />Crear acceso</button> : item.account_id && user?.role !== 'viewer' ? <button onClick={() => handleResetPassword(item)} disabled={resetPassword.isPending} className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60 dark:border-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-950/30"><KeyRound size={14} />Regenerar contraseña</button> : item.account_id ? <span className="text-xs text-slate-400">Creada {formatDate(item.account_created_at)}</span> : <span className="text-xs text-slate-400">No elegible</span>}</td>
+                   <td className="px-4 py-4">{!item.account_id && user?.role !== 'viewer' ? <button onClick={() => openCreate(item)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700"><KeyRound size={14} />Crear acceso</button> : item.account_id && user?.role !== 'viewer' ? <button onClick={() => handleResetPassword(item)} disabled={resetPassword.isPending} className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60 dark:border-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-950/30"><KeyRound size={14} />Regenerar contraseña</button> : item.account_id ? <span className="text-xs text-slate-400">Creada {formatDate(item.account_created_at)}</span> : <span className="text-xs text-slate-400">Solo consulta</span>}</td>
                 </tr>
               ))}
               {!isLoading && accounts.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-slate-400">No hay clientes que coincidan con los filtros.</td></tr>}
             </tbody>
-          </table>
+         </table>
+          {!isLoading && data?.pagination ? (
+            <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-500 dark:border-zinc-800 dark:text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
+              <span>Mostrando {accounts.length ? ((data.pagination.page - 1) * data.pagination.pageSize) + 1 : 0} a {Math.min(data.pagination.page * data.pagination.pageSize, data.pagination.totalItems)} de {data.pagination.totalItems} clientes</span>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={data.pagination.page <= 1} className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-200"><ChevronLeft size={16} />Anterior</button>
+                <span className="min-w-20 text-center font-semibold">Página {data.pagination.page} de {data.pagination.totalPages || 1}</span>
+                <button type="button" onClick={() => setPage(current => Math.min(data.pagination.totalPages, current + 1))} disabled={data.pagination.page >= data.pagination.totalPages} className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-3 font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-200">Siguiente<ChevronRight size={16} /></button>
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 

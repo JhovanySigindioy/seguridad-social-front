@@ -49,9 +49,9 @@ export const AffiliatePortalPage = () => {
       eyebrow="Resumen de cuenta"
       hideHero
     >
-      <div className={showHistory ? 'mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8' : 'w-full min-h-[calc(100vh-4rem)] lg:bg-slate-50 lg:px-7 lg:py-6 dark:lg:bg-zinc-950'}>
+      <div className="mx-auto w-full max-w-6xl px-0 pb-5 sm:px-6 sm:py-8 lg:px-8 lg:py-6">
         {!showHistory && <>
-        <div className="flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden bg-white dark:bg-zinc-900 lg:mx-auto lg:min-h-0 lg:max-w-6xl lg:rounded-3xl lg:border lg:border-slate-200 lg:shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:lg:border-zinc-800 dark:lg:shadow-none">
+        <div className="flex flex-col overflow-hidden bg-white dark:bg-zinc-900 lg:mx-auto lg:min-h-0 lg:max-w-6xl lg:rounded-3xl lg:border lg:border-slate-200 lg:shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:lg:border-zinc-800 dark:lg:shadow-none">
         <div className="border-b border-white/10 bg-[linear-gradient(135deg,_#013575_0%,_#0b468f_100%)] px-4 py-3.5 text-white sm:px-7 sm:py-5 lg:flex lg:items-center lg:justify-between lg:px-8 lg:py-5">
           <div>
             <p className="text-2xl font-black tracking-tight text-white sm:text-4xl lg:text-3xl">Hola, {user?.name || 'afiliado'}</p>
@@ -100,8 +100,8 @@ export const AffiliatePortalPage = () => {
         </div>
         </>}
 
-        {showHistory && <section id="historial-afiliaciones" className="mt-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="flex flex-col gap-2 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6 dark:border-zinc-800"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-500">Historial</p><h2 className="mt-1 text-xl font-black text-slate-900 dark:text-white">Tus periodos confirmados</h2></div><p className="text-sm text-slate-500 dark:text-zinc-400">{historyAffiliations.length} periodo{historyAffiliations.length !== 1 ? 's' : ''} anterior{historyAffiliations.length !== 1 ? 'es' : ''}</p></div>
+        {showHistory && <section id="historial-afiliaciones" className="overflow-hidden bg-white dark:bg-zinc-900 lg:rounded-3xl lg:border lg:border-slate-200 lg:shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:lg:border-zinc-800 dark:lg:shadow-none">
+           <div className="border-b border-white/10 bg-[linear-gradient(135deg,_#013575_0%,_#0b468f_100%)] px-4 py-4 text-white sm:px-6 sm:py-5"><p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-100/75">Historial</p><div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"><h2 className="text-xl font-black">Tus periodos confirmados</h2><p className="text-sm text-blue-100/85">{historyAffiliations.length} periodo{historyAffiliations.length !== 1 ? 's' : ''} anterior{historyAffiliations.length !== 1 ? 'es' : ''}</p></div></div>
           {historyAffiliations.length > 0 ? <div>{historyAffiliations.map((affiliation) => <AffiliationPeriodRow key={`${affiliation.id}-${affiliation.month}-${affiliation.year}`} affiliation={affiliation} documentCount={getDocumentsForAffiliation(safeDocuments, affiliation).length} />)}</div> : <div className="px-6 py-12 text-center text-sm text-slate-500 dark:text-zinc-400">No hay otros periodos confirmados para esta cuenta.</div>}
         </section>}
       </div>

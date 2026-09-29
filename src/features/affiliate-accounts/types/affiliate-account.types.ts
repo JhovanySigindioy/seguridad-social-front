@@ -15,10 +15,31 @@ export interface AffiliateAccountRow {
   last_login_at?: string | null;
   created_by_name?: string | null;
   confirmed_affiliation_count: number;
+  active_affiliation_count: number;
   document_count: number;
   last_paid_month?: number | null;
   last_paid_year?: number | null;
   eligible: boolean;
+}
+
+export interface AffiliateAccountsPagination {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface AffiliateAccountsSummary {
+  total: number;
+  activeAccounts: number;
+  clientsWithoutAccount: number;
+  clientsWithActiveAffiliation: number;
+}
+
+export interface AffiliateAccountsResponse {
+  items: AffiliateAccountRow[];
+  pagination: AffiliateAccountsPagination;
+  summary: AffiliateAccountsSummary;
 }
 
 export interface CreateAffiliateAccountResponse {

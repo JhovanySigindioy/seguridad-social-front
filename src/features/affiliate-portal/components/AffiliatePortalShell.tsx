@@ -59,10 +59,11 @@ export const AffiliatePortalShell = ({
       return;
     }
 
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousOverflow;
     };
   }, [menuOpen]);
 
@@ -261,10 +262,11 @@ export const AffiliatePortalShell = ({
       <AnimatePresence mode="wait">
         <motion.main
           key={location.pathname}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
+          initial={{ opacity: 0, x: 0, y: 8 }}
+          animate={{ opacity: 1, x: 0, y: 0 }}
+          exit={{ opacity: 0, x: 0, y: -6 }}
           transition={{ duration: 0.2, ease: 'easeOut' }}
+          style={{ transformOrigin: 'top center', willChange: 'opacity, transform' }}
           className={`w-full px-0 ${hideHero ? 'pt-16 pb-0' : 'pb-4 sm:pb-5 lg:pb-6'}`}
         >
           {children}
