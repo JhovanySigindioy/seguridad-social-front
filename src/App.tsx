@@ -26,6 +26,30 @@ const AppBridge = () => {
   return null;
 };
 
+interface AppRoutesProps {
+  token: string | null;
+  isAdmin: boolean;
+  affiliateToken: string | null;
+}
+
+const AppRoutes = ({ token, isAdmin, affiliateToken }: AppRoutesProps) => {
+  return (
+    <Routes>
+          <Route path="/login" element={!token ? <LoginPage /> : <Navigate to="/" />} />
+          <Route path="/portal/login" element={!affiliateToken ? <AffiliateLoginPage /> : <Navigate to="/portal" />} />
+          <Route path="/portal" element={affiliateToken ? <AffiliatePortalPage /> : <Navigate to="/portal/login" />} />
+          <Route path="/portal/historial" element={affiliateToken ? <AffiliatePortalPage /> : <Navigate to="/portal/login" />} />
+          <Route path="/portal/afiliacion/:affiliationId/:year/:month" element={affiliateToken ? <AffiliateAffiliationDetailPage /> : <Navigate to="/portal/login" />} />
+          <Route path="/control-acceso/gestor-cobro-9xv3k2" element={<AgencyPaymentLockPage />} />
+          <Route path="/" element={token ? <DashboardPage /> : <Navigate to="/login" />} />
+          <Route path="/affiliations" element={token ? <DashboardPage tab="affiliations" /> : <Navigate to="/login" />} />
+          <Route path="/affiliate-accounts" element={token ? <DashboardPage tab="affiliate-accounts" /> : <Navigate to="/login" />} />
+          <Route path="/admin/companies/new" element={token && isAdmin ? <DashboardPage tab="admin-companies" /> : <Navigate to="/" />} />
+          <Route path="/admin/offices/new" element={token && isAdmin ? <DashboardPage tab="admin-offices" /> : <Navigate to="/" />} />
+    </Routes>
+  );
+};
+
 function App() {
   const token = useAuthStore(state => state.token);
   const user = useAuthStore(state => state.user);
@@ -36,48 +60,7 @@ function App() {
     <ToastProvider>
       <AppBridge />
       <BrowserRouter>
-        <Routes>
-          <Route 
-            path="/login" 
-            element={!token ? <LoginPage /> : <Navigate to="/" />} 
-          />
-          <Route
-            path="/portal/login"
-            element={!affiliateToken ? <AffiliateLoginPage /> : <Navigate to="/portal" />}
-          />
-          <Route
-            path="/portal"
-            element={affiliateToken ? <AffiliatePortalPage /> : <Navigate to="/portal/login" />}
-          />
-          <Route
-            path="/portal/afiliacion/:affiliationId/:year/:month"
-            element={affiliateToken ? <AffiliateAffiliationDetailPage /> : <Navigate to="/portal/login" />}
-          />
-          <Route
-            path="/control-acceso/gestor-cobro-9xv3k2"
-            element={<AgencyPaymentLockPage />}
-          />
-          <Route 
-            path="/" 
-            element={token ? <DashboardPage /> : <Navigate to="/login" />} 
-          />
-          <Route 
-            path="/affiliations" 
-            element={token ? <DashboardPage tab="affiliations" /> : <Navigate to="/login" />} 
-          />
-          <Route
-            path="/affiliate-accounts"
-            element={token ? <DashboardPage tab="affiliate-accounts" /> : <Navigate to="/login" />}
-          />
-          <Route
-            path="/admin/companies/new"
-            element={token && isAdmin ? <DashboardPage tab="admin-companies" /> : <Navigate to="/" />}
-          />
-          <Route
-            path="/admin/offices/new"
-            element={token && isAdmin ? <DashboardPage tab="admin-offices" /> : <Navigate to="/" />}
-          />
-        </Routes>
+        <AppRoutes token={token} isAdmin={isAdmin} affiliateToken={affiliateToken} />
       </BrowserRouter>
     </ToastProvider>
   );

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { AnimatePresence, motion } from 'framer-motion';
 import { KeyRound, Loader2, X } from 'lucide-react';
 import { useAffiliateAuthStore } from '../../../store/useAffiliateAuthStore';
 import { useChangeAffiliatePassword } from '../hooks/useAffiliatePortal';
@@ -17,8 +18,6 @@ export const ChangeAffiliatePasswordModal = ({ isOpen, required, onClose }: Prop
   const [newPassword, setNewPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [error, setError] = useState('');
-
-  if (!isOpen) return null;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -46,8 +45,22 @@ export const ChangeAffiliatePasswordModal = ({ isOpen, required, onClose }: Prop
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4">
-      <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-zinc-900">
+    <AnimatePresence>
+      {isOpen ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.985 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-zinc-900"
+          >
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-200"><KeyRound size={19} /></div>
@@ -64,7 +77,9 @@ export const ChangeAffiliatePasswordModal = ({ isOpen, required, onClose }: Prop
           {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 dark:bg-red-950/30 dark:text-red-300">{error}</p>}
           <button type="submit" disabled={changePassword.isPending} className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#013575] px-4 py-3 text-sm font-bold text-white disabled:opacity-60">{changePassword.isPending && <Loader2 size={16} className="animate-spin" />}Guardar nueva contraseña</button>
         </form>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 };

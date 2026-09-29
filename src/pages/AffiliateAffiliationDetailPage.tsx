@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { ArrowLeft, ArrowRight, BriefcaseBusiness, CalendarRange, Download, Eye, FileText, Loader2 } from 'lucide-react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { BriefcaseBusiness, CalendarRange, Download, Eye, FileText, Loader2 } from 'lucide-react';
+import { Navigate, useParams } from 'react-router-dom';
 import affiliateApi from '../services/api/affiliate-axios';
 import { useAffiliateAuthStore } from '../store/useAffiliateAuthStore';
 import { useAffiliateAffiliations, useAffiliateDocuments, useAffiliateMe } from '../features/affiliate-portal/hooks/useAffiliatePortal';
@@ -13,7 +13,6 @@ import {
   formatFileSize,
   formatMoney,
   getAffiliationPeriodLabel,
-  getAffiliationRoute,
   getDocumentsForAffiliation,
   isDocumentPreviewable,
 } from '../features/affiliate-portal/utils/affiliate-portal.helpers';
@@ -46,19 +45,6 @@ export const AffiliateAffiliationDetailPage = () => {
     item.id === parsedAffiliationId && item.year === parsedYear && item.month === parsedMonth
   ) || null;
   const selectedDocuments = selectedAffiliation ? getDocumentsForAffiliation(safeDocuments, selectedAffiliation) : [];
-
-  const navigation = (() => {
-    if (!selectedAffiliation) {
-      return { previous: null as typeof selectedAffiliation, next: null as typeof selectedAffiliation };
-    }
-
-    const index = safeAffiliations.findIndex((item) => item.id === selectedAffiliation.id);
-
-    return {
-      previous: index >= 0 && index < safeAffiliations.length - 1 ? safeAffiliations[index + 1] : null,
-      next: index > 0 ? safeAffiliations[index - 1] : null,
-    };
-  })();
 
   const contractedServices = (() => {
     if (!selectedAffiliation) {
@@ -149,14 +135,6 @@ export const AffiliateAffiliationDetailPage = () => {
         description={selectedAffiliation ? 'Detalle del periodo seleccionado.' : 'Cargando detalle del periodo.'}
         eyebrow="Detalle de afiliacion"
         hideHero
-        aside={(
-          <Link
-            to="/portal"
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-[#013575] dark:border-zinc-700 dark:text-zinc-200"
-          >
-            <ArrowLeft size={16} /> Volver al listado
-          </Link>
-        )}
       >
         {loadingAffiliations || loadingDocuments || !selectedAffiliation ? (
           <div className="space-y-4 px-4 sm:px-5 lg:px-6">
@@ -165,70 +143,37 @@ export const AffiliateAffiliationDetailPage = () => {
             <div className="h-56 animate-pulse bg-slate-100 dark:bg-zinc-900" />
           </div>
         ) : (
-          <div className="space-y-6 px-4 sm:px-5 lg:px-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Link to="/portal" className="font-semibold text-slate-500 transition hover:text-[#013575] dark:text-zinc-400 dark:hover:text-indigo-200">
-                  Mis afiliaciones
-                </Link>
-                <span className="text-slate-300 dark:text-zinc-700">/</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{getAffiliationPeriodLabel(selectedAffiliation)}</span>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {navigation.previous ? (
-                  <Link
-                    to={getAffiliationRoute(navigation.previous)}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-[#013575] dark:border-zinc-700 dark:text-zinc-200"
-                  >
-                    <ArrowLeft size={16} /> Periodo anterior
-                  </Link>
-                ) : null}
-
-                {navigation.next ? (
-                  <Link
-                    to={getAffiliationRoute(navigation.next)}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-indigo-300 hover:text-[#013575] dark:border-zinc-700 dark:text-zinc-200"
-                  >
-                    Periodo siguiente <ArrowRight size={16} />
-                  </Link>
-                ) : null}
-              </div>
-            </div>
-
-            <section className="overflow-hidden border-y border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-              <div className="px-4 py-5 sm:px-5 sm:py-6 lg:px-6">
+          <div className="w-full space-y-5 px-0 pb-5 sm:space-y-6 sm:px-5 sm:pb-8 lg:mx-auto lg:max-w-6xl lg:px-0">
+            <section className="overflow-hidden bg-white dark:bg-zinc-950 lg:rounded-3xl lg:border lg:border-slate-200 lg:shadow-sm dark:lg:border-zinc-800">
+              <div className="bg-[linear-gradient(135deg,_#013575_0%,_#0b468f_100%)] px-4 py-5 text-white sm:px-5 sm:py-6 lg:px-8">
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center text-[#013575] dark:text-indigo-200">
-                      <CalendarRange size={18} />
-                    </div>
+ 
                     <div>
-                      <h2 className="text-xl font-black text-slate-900 dark:text-white">{getAffiliationPeriodLabel(selectedAffiliation)}</h2>
-                      <p className="text-sm text-slate-500 dark:text-zinc-400">Oficina {selectedAffiliation.office_name} - Aporte {formatMoney(Number(selectedAffiliation.value))}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-100/75">Detalle del periodo</p>
+                      <h2 className="mt-1 text-xl font-black text-white">{getAffiliationPeriodLabel(selectedAffiliation)}</h2>
+                      <p className="text-sm text-blue-100/85">Oficina {selectedAffiliation.office_name} · {formatMoney(Number(selectedAffiliation.value))}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 px-3 py-2">
-                    <span className={`inline-flex h-2.5 w-2.5 rounded-full ${selectedAffiliation.status === 'Activo' && selectedAffiliation.decision_status === 'Confirmada' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                    <span className="text-sm font-medium text-slate-900 dark:text-white">
-                      {selectedAffiliation.decision_status === 'Por Confirmar'
-                        ? 'Por confirmar'
-                        : selectedAffiliation.decision_status === 'No Continúa'
-                          ? 'No continua'
-                          : selectedAffiliation.status === 'Activo'
-                            ? 'Vigente'
-                            : selectedAffiliation.status === 'Inactivo' ? 'Retirada' : 'Vencida'} - {selectedAffiliation.payment_status}
+                  <div className="flex flex-wrap items-center gap-2 py-2">
+                    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${selectedAffiliation.status === 'Activo' ? 'bg-emerald-400 text-emerald-950' : 'bg-amber-300 text-amber-950'}`}>
+                      <span className="h-2 w-2 rounded-full bg-current" />
+                      {selectedAffiliation.status === 'Activo' ? 'Vigente' : selectedAffiliation.status === 'Inactivo' ? 'Retirada' : 'Vencida'}
+                    </span>
+                    <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-bold ${selectedAffiliation.payment_status === 'Pagado' ? 'bg-emerald-400 text-emerald-950' : selectedAffiliation.payment_status === 'En Proceso' ? 'bg-blue-200 text-blue-950' : 'bg-amber-300 text-amber-950'}`}>
+                      Pago: {selectedAffiliation.payment_status}
                     </span>
                   </div>
                 </div>
+              </div>
 
-                <div className="border-y border-slate-200 py-4 text-sm text-slate-500 dark:border-zinc-800 dark:text-zinc-400">
+              <div className="border-y border-slate-200 px-4 py-4 text-sm text-slate-500 dark:border-zinc-800 dark:text-zinc-400 sm:px-5 lg:px-8">
                   <span className="font-semibold text-slate-900 dark:text-white">Servicios:</span>{' '}
                   {contractedServices.map((service) => `${service.label}: ${service.value}`).join(' | ')}
-                </div>
+              </div>
 
-                <div className="grid gap-0 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-0 px-4 sm:grid-cols-2 sm:px-5 xl:grid-cols-4 lg:px-8">
                   {[
                     ['Cobertura', `${formatDate(selectedAffiliation.start_date)} - ${selectedAffiliation.end_date ? formatDate(selectedAffiliation.end_date) : 'Activa'}`],
                     ['Archivos', `${selectedDocuments.length}`],
@@ -240,7 +185,6 @@ export const AffiliateAffiliationDetailPage = () => {
                       <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
                     </div>
                   ))}
-                </div>
               </div>
 
               <div className="border-t border-slate-200 dark:border-zinc-800">
