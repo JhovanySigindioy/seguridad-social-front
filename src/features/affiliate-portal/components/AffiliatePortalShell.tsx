@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import { KeyRound, LogOut, Menu, ShieldCheck, X } from 'lucide-react';
@@ -32,6 +32,7 @@ export const AffiliatePortalShell = ({
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(Boolean(user?.must_change_password));
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user?.must_change_password) setPasswordOpen(true);
@@ -51,6 +52,19 @@ export const AffiliatePortalShell = ({
 
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [accountMenuOpen]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer);
   }, [accountMenuOpen]);
 
   useEffect(() => {
@@ -123,17 +137,17 @@ export const AffiliatePortalShell = ({
 
           <div className="hidden items-center gap-3 lg:flex">
             {aside}
-            <div className="relative">
-              <button type="button" onClick={() => setAccountMenuOpen((current) => !current)} className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#013575] text-sm font-black text-white shadow-sm ring-2 ring-white transition hover:bg-[#0a4089] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 dark:ring-zinc-950" aria-label="Abrir menú de cuenta" aria-expanded={accountMenuOpen}>{initials}</button>
+            <div ref={accountMenuRef} className="relative">
+              <button type="button" onClick={() => setAccountMenuOpen((current) => !current)} className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#013575] text-sm font-black text-white shadow-sm ring-2 ring-white transition hover:bg-[#0a4089] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 dark:ring-zinc-950" aria-label="Abrir menú de cuenta" aria-haspopup="menu" aria-expanded={accountMenuOpen}>{initials}</button>
               {accountMenuOpen && (
-                <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+                <div role="menu" aria-label="Opciones de cuenta" className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-4 dark:border-zinc-800">
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-base font-black text-[#013575] dark:bg-indigo-950/40 dark:text-indigo-200">{initials}</span>
                     <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">Cuenta del portal</p><p className="truncate text-sm font-bold text-slate-900 dark:text-white">{user?.email || 'Sin correo'}</p><p className="truncate text-xs text-slate-500 dark:text-zinc-400">{user?.identification || 'Sin identificacion'} · {user?.office_name || 'Sin sede'}</p></div>
                   </div>
                   <div className="mt-3 space-y-1">
-                    <button type="button" onClick={() => { setPasswordOpen(true); setAccountMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-indigo-50 hover:text-[#013575] dark:text-zinc-200 dark:hover:bg-indigo-950/30 dark:hover:text-indigo-200"><KeyRound size={17} /> Cambiar contraseña</button>
-                    <button type="button" onClick={logout} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-red-600 dark:text-zinc-200 dark:hover:bg-red-950/30 dark:hover:text-red-300"><LogOut size={17} /> Cerrar sesión</button>
+                     <button type="button" role="menuitem" onClick={() => { setPasswordOpen(true); setAccountMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-indigo-50 hover:text-[#013575] dark:text-zinc-200 dark:hover:bg-indigo-950/30 dark:hover:text-indigo-200"><KeyRound size={17} /> Cambiar contraseña</button>
+                     <button type="button" role="menuitem" onClick={logout} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-red-50 hover:text-red-600 dark:text-zinc-200 dark:hover:bg-red-950/30 dark:hover:text-red-300"><LogOut size={17} /> Cerrar sesión</button>
                   </div>
                 </div>
               )}

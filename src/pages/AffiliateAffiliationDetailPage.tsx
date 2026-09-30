@@ -212,10 +212,11 @@ export const AffiliateAffiliationDetailPage = () => {
                               type="button"
                               onClick={() => handleOpen(portalDocument.id)}
                               disabled={openingId === portalDocument.id}
-                              className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-[#013575] hover:text-[#013575] disabled:cursor-wait disabled:opacity-70 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-indigo-200"
+                              className="inline-flex gap-2 h-11 px-4 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:border-[#013575] hover:text-[#013575] disabled:cursor-wait disabled:opacity-70 dark:border-zinc-700 dark:text-zinc-300 dark:hover:text-indigo-200"
                               aria-label="Abrir archivo"
                             >
                               {openingId === portalDocument.id ? <Loader2 size={16} className="animate-spin" /> : <ExternalLink size={16} />}
+                              <span>Ver</span>
                             </button>
 
                             <button
