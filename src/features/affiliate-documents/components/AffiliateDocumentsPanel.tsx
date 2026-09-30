@@ -7,6 +7,7 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import type { AffiliationItem } from '../../affiliations/types/affiliation.types';
 import { AFFILIATE_DOCUMENT_TYPES } from '../types/affiliate-document.types';
 import { useAffiliateDocuments, useUploadAffiliateDocument } from '../hooks/useAffiliateDocuments';
+import { useActivatePortalService, usePortalServiceStatus } from '../../portal-service/hooks/usePortalService';
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return 'Sin fecha';
@@ -49,6 +50,8 @@ export const AffiliateDocumentsPanel = ({ affiliation, isOpen }: Props) => {
   const [isVisibleToAffiliate, setIsVisibleToAffiliate] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [serviceModalOpen, setServiceModalOpen] = useState(false);
+  const [serviceTermsAccepted, setServiceTermsAccepted] = useState(false);
 
   const filters = useMemo(() => ({
     client_id: affiliation.client_id,
@@ -58,6 +61,8 @@ export const AffiliateDocumentsPanel = ({ affiliation, isOpen }: Props) => {
 
   const { data: documents, isLoading, isError } = useAffiliateDocuments(filters, isOpen);
   const uploadMutation = useUploadAffiliateDocument();
+  const { data: portalService } = usePortalServiceStatus();
+  const activatePortalService = useActivatePortalService();
 
   const resetForm = () => {
     setDocumentType('certificado');
@@ -71,6 +76,11 @@ export const AffiliateDocumentsPanel = ({ affiliation, isOpen }: Props) => {
 
     if (!selectedFile) {
       showToast('Selecciona un archivo antes de subirlo.');
+      return;
+    }
+
+    if (!portalService?.enabled) {
+      setServiceModalOpen(true);
       return;
     }
 
@@ -186,6 +196,10 @@ export const AffiliateDocumentsPanel = ({ affiliation, isOpen }: Props) => {
         </form>
       )}
 
+      {canUpload && !portalService?.enabled && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">El portal de afiliados requiere autorización administrativa antes de publicar documentos.</div>
+      )}
+
       {isLoading ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
           <div className="space-y-3">
@@ -247,6 +261,18 @@ export const AffiliateDocumentsPanel = ({ affiliation, isOpen }: Props) => {
           <FileText size={32} className="mx-auto mb-3 text-slate-300 dark:text-zinc-700" />
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-200">Aun no hay documentos para esta afiliacion.</p>
           <p className="mt-1 text-xs text-slate-500 dark:text-zinc-400">Cuando cargues soportes desde esta vista apareceran aqui para su consulta y descarga.</p>
+        </div>
+      )}
+
+      {serviceModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-zinc-900">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-600">Servicio no autorizado</p>
+            <h2 className="mt-2 text-xl font-black text-slate-900 dark:text-white">El portal tiene un costo adicional</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-zinc-300">La publicación de documentos genera un cobro mensual de <strong>$6.000 COP por cada cuenta de afiliado creada</strong>. Solo Angelica Ravelo, administradora de la agencia, puede autorizar este servicio.</p>
+            {user?.role === 'admin' ? <label className="mt-4 flex items-start gap-3 text-sm text-slate-700 dark:text-zinc-200"><input type="checkbox" checked={serviceTermsAccepted} onChange={(event) => setServiceTermsAccepted(event.target.checked)} className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600" /><span>Acepto el cobro mensual y autorizo el uso del portal para la agencia.</span></label> : null}
+            <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setServiceModalOpen(false)} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700 transition hover:border-red-300 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/50">Cerrar</button>{user?.role === 'admin' ? <button type="button" onClick={async () => { await activatePortalService.mutateAsync(); setServiceModalOpen(false); setServiceTermsAccepted(false); }} disabled={!serviceTermsAccepted || activatePortalService.isPending} className="rounded-xl bg-[#013575] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-60">{activatePortalService.isPending ? 'Activando...' : 'Autorizar servicio'}</button> : null}</div>
+          </div>
         </div>
       )}
     </div>

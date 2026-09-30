@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, LogOut,
   Building2, Menu, X, Sun, Moon, Bell,
   TrendingUp, CheckCircle2, Clock, AlertCircle, ChevronRight, UserPlus, Copy,
-  BarChart3, Target, BriefcaseBusiness
+   BarChart3, Target, BriefcaseBusiness, Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
@@ -19,10 +19,12 @@ import { ReportsPage } from '../features/reports/pages/ReportsPage';
 import { NewCompanyPage } from '../features/companies/pages/NewCompanyPage';
 import { NewOfficePage } from '../features/offices/pages/NewOfficePage';
 import { AffiliateAccountsPage } from '../features/affiliate-accounts/pages/AffiliateAccountsPage';
+import { PortalServicePage } from '../features/portal-service/pages/PortalServicePage';
 import { useAffiliations } from '../features/affiliations/hooks/useAffiliations';
 import { useOffices } from '../features/offices/hooks/useOffices';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { MonthYearSelector } from '../components/MonthYearSelector';
+import { usePortalServiceStatus } from '../features/portal-service/hooks/usePortalService';
 
 // ─── Nav Items ────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
@@ -46,6 +48,7 @@ const NAV_ITEMS = [
       { id: 'affiliate-accounts', label: 'Accesos al portal' },
     ],
   },
+  { id: 'portal-service', label: 'Portal de afiliados', icon: Sparkles, featured: true },
   {
     id: 'admin-menu',
     label: 'Administracion',
@@ -267,7 +270,7 @@ const AffiliationRow = ({ item, showOffice, clientFallback }: { item: any; showO
 };
 
 // ─── Dashboard Home ───────────────────────────────────────────────────────────
-const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: number | null }) => {
+const DashboardHome = ({ user, activeOfficeId, onOpenPortal }: { user: any; activeOfficeId: number | null; onOpenPortal?: () => void }) => {
   const { data: affiliations, isLoading } = useAffiliations();
   const { data: clients } = useClients();
   const { offices } = useOffices();
@@ -275,6 +278,7 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
   const [targetMonth, setTargetMonth] = useState<number>(new Date().getMonth() + 1);
   const [targetYear, setTargetYear] = useState<number>(new Date().getFullYear());
   const isAdmin = user?.role === 'admin';
+  const { data: portalService } = usePortalServiceStatus();
 
   const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -449,6 +453,19 @@ const DashboardHome = ({ user, activeOfficeId }: { user: any; activeOfficeId: nu
           </span>
         </div>
       </motion.div>
+
+      {!portalService?.enabled && (
+        <motion.button
+          type="button"
+          onClick={onOpenPortal}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="group relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 p-5 text-left shadow-sm transition hover:border-indigo-300 hover:shadow-md dark:border-indigo-900/50 dark:from-indigo-950/30 dark:to-blue-950/20"
+        >
+          <div className="relative z-10 flex items-center gap-4"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#013575] text-white shadow-sm"><Sparkles size={20} /></div><div><p className="text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-300">Nuevo servicio</p><p className="mt-1 text-sm font-black text-slate-900 dark:text-white">Activa el Portal de afiliados para tu agencia</p><p className="mt-1 text-xs text-slate-600 dark:text-zinc-300">Consulta de documentos y periodos por $6.000 mensuales por cuenta.</p></div></div>
+          <ChevronRight className="relative z-10 shrink-0 text-indigo-600 transition group-hover:translate-x-1 dark:text-indigo-300" size={20} />
+        </motion.button>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -693,14 +710,15 @@ const Sidebar = ({
             <button
               key={item.id}
               onClick={() => { onTabChange(item.id); onClose(); }}
-              className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                   className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${item.featured && !active ? 'border border-indigo-200 bg-indigo-50/70 text-[#013575] shadow-sm dark:border-indigo-900/50 dark:bg-indigo-950/20 dark:text-indigo-200' : active
+                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                 : 'text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200'
                 }`}
             >
               <span className="flex items-center gap-3">
                 <item.icon size={17} />
-                {item.label}
+                   {item.label}
+                   {item.featured && !active ? <span className="rounded-full bg-indigo-600 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">Nuevo</span> : null}
               </span>
             </button>
           );
@@ -752,12 +770,13 @@ export const DashboardPage = ({ tab }: DashboardPageProps = {}) => {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <DashboardHome user={user} activeOfficeId={activeOfficeId} />;
+       case 'dashboard': return <DashboardHome user={user} activeOfficeId={activeOfficeId} onOpenPortal={() => setActiveTab('portal-service')} />;
       case 'affiliations': return <AffiliationsPage onNewAffiliation={() => setActiveTab('new-affiliation')} />;
       case 'daily-report': return <DailyReportPage />;
       case 'new-affiliation': return <NewAffiliationPage onCancel={() => setActiveTab('affiliations')} onSuccess={() => setActiveTab('affiliations')} />;
        case 'clients': return <ClientsPage />;
-       case 'affiliate-accounts': return <AffiliateAccountsPage />;
+       case 'affiliate-accounts': return <AffiliateAccountsPage onOpenService={() => setActiveTab('portal-service')} />;
+       case 'portal-service': return <PortalServicePage onOpenAccounts={() => setActiveTab('affiliate-accounts')} />;
       case 'retired': return <AffiliationsTable defaultTab="inactivas" />;
       case 'admin-companies': return isAdmin ? <NewCompanyPage /> : <DashboardHome user={user} activeOfficeId={activeOfficeId} />;
       case 'admin-offices': return isAdmin ? <NewOfficePage /> : <DashboardHome user={user} activeOfficeId={activeOfficeId} />;

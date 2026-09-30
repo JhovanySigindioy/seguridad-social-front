@@ -4,6 +4,7 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { useOffices } from '../../offices/hooks/useOffices';
 import { useAffiliateAccounts, useCreateAffiliateAccount, useResetAffiliateAccountPassword } from '../hooks/useAffiliateAccounts';
 import type { AffiliateAccountRow } from '../types/affiliate-account.types';
+import { usePortalServiceStatus } from '../../portal-service/hooks/usePortalService';
 
 const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
@@ -18,7 +19,11 @@ const statusLabel = (status?: string | null) => ({
   invited: 'Invitada',
 }[status || ''] || 'Sin cuenta');
 
-export const AffiliateAccountsPage = () => {
+interface Props {
+  onOpenService?: () => void;
+}
+
+export const AffiliateAccountsPage = ({ onOpenService }: Props) => {
   const { user } = useAuthStore();
   const { offices } = useOffices();
   const isAdmin = user?.role === 'admin';
@@ -36,10 +41,15 @@ export const AffiliateAccountsPage = () => {
   const accounts = data?.items || [];
   const createAccount = useCreateAffiliateAccount();
   const resetPassword = useResetAffiliateAccountPassword();
+  const { data: portalService } = usePortalServiceStatus();
 
   const summary = data?.summary || { total: 0, activeAccounts: 0, clientsWithoutAccount: 0, clientsWithActiveAffiliation: 0 };
 
   const openCreate = (item: AffiliateAccountRow) => {
+    if (!portalService?.enabled) {
+      onOpenService?.();
+      return;
+    }
     setSelectedClient(item);
     setEmail(item.client_email || '');
   };
@@ -82,6 +92,21 @@ export const AffiliateAccountsPage = () => {
         <h1 className="mt-1 text-2xl font-black text-slate-900 dark:text-white">Accesos al portal</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-zinc-400">Crea y consulta las cuentas que permiten a cada afiliado revisar sus periodos y documentos.</p>
       </div>
+
+      <section className={`rounded-2xl border p-4 shadow-sm ${portalService?.enabled ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/20' : 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20'}`}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className={`text-xs font-bold uppercase tracking-[0.18em] ${portalService?.enabled ? 'text-emerald-700' : 'text-amber-700'}`}>Servicio del portal</p>
+            <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">{portalService?.enabled ? 'Portal de afiliados activo' : 'Portal de afiliados pendiente de autorización'}</p>
+            <p className="mt-1 text-xs text-slate-600 dark:text-zinc-300">Costo mensual: ${Number(portalService?.monthly_price || 6000).toLocaleString('es-CO')} por cada cuenta creada.</p>
+          </div>
+          {isAdmin ? (
+            <button type="button" onClick={onOpenService} disabled={portalService?.enabled} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#013575] px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{portalService?.enabled ? 'Servicio autorizado' : 'Autorizar servicio'}</button>
+          ) : (
+            <button type="button" onClick={onOpenService} className="text-left text-xs font-semibold text-amber-800 underline dark:text-amber-200">La autorización debe realizarla Angelica Ravelo, administradora de la agencia.</button>
+          )}
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
@@ -165,6 +190,7 @@ export const AffiliateAccountsPage = () => {
       {credentials && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"><div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-zinc-900"><div className="flex items-center gap-3 text-emerald-600"><Check /><h2 className="text-xl font-black">Cuenta creada</h2></div><p className="mt-2 text-sm text-slate-500">Entrega estas credenciales a {credentials.clientName}. La contraseña no volverá a mostrarse.</p><div className="mt-5 space-y-3"><div className="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-zinc-800"><div><p className="text-xs text-slate-400">Correo</p><p className="font-bold dark:text-white">{credentials.email}</p></div><button onClick={() => copy(credentials.email, 'email')}><Copy size={17} className={copied === 'email' ? 'text-emerald-600' : 'text-slate-400'} /></button></div><div className="flex items-center justify-between rounded-xl bg-slate-50 p-3 dark:bg-zinc-800"><div><p className="text-xs text-slate-400">Contraseña temporal</p><p className="font-bold dark:text-white">{credentials.password}</p></div><button onClick={() => copy(credentials.password, 'password')}><Copy size={17} className={copied === 'password' ? 'text-emerald-600' : 'text-slate-400'} /></button></div></div><button onClick={() => setCredentials(null)} className="mt-5 w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white">Cerrar</button></div></div>
       )}
+
     </div>
   );
 };
