@@ -218,8 +218,8 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
   };
 
   const getStatusOptions = (): PaymentDisplayStatus[] => user?.role === 'admin'
-    ? ['Por Confirmar', 'Pendiente', 'En Proceso', 'Pagado']
-    : ['Por Confirmar', 'Pendiente', 'En Proceso'];
+    ? ['Pendiente', 'En Proceso', 'Pagado']
+    : ['Pendiente', 'En Proceso'];
 
   const isStatusOptionDisabled = (item: AffiliationItem, status: PaymentDisplayStatus) => {
     if (item.decision_status === 'No Continúa') return true;
@@ -576,7 +576,8 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                              ? 'No Continúa'
                              : item.payment_status;
                           const officePaid = user?.role === 'office_manager' && item.payment_status === 'Pagado';
-                          return canChangeStatus && item.decision_status !== 'No Continúa' && !officePaid ? (
+                          const legacyPending = currentPaymentStatus === 'Por Confirmar';
+                          return canChangeStatus && item.decision_status !== 'No Continúa' && !officePaid && !legacyPending ? (
                           <div
                             title="Cambiar estado"
                             className={`inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm ${STATUS_STYLES[currentPaymentStatus].select}`}
