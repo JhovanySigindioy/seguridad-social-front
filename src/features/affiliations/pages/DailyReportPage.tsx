@@ -169,8 +169,11 @@ export const DailyReportPage = () => {
   );
 
   const getAllowedStatuses = (role?: string): PaymentStatus[] => {
-    if (role === 'admin' || role === 'office_manager') {
+    if (role === 'admin') {
       return [...PAYMENT_STATUSES];
+    }
+    if (role === 'office_manager') {
+      return PAYMENT_STATUSES.filter(status => status !== 'Pagado');
     }
     return [];
   };
@@ -459,7 +462,7 @@ export const DailyReportPage = () => {
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         {item.status === 'Inactivo' ? (
                           <StatusBadge status={item.payment_status} />
-                        ) : allowedStatusOptions.length > 0 ? (
+                         ) : allowedStatusOptions.length > 0 && !(user?.role === 'office_manager' && item.payment_status === 'Pagado') ? (
                           <div className="inline-flex min-w-[120px] items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-semibold shadow-sm"
                             style={{
                               backgroundColor: item.payment_status === 'Pagado' ? '#ecfdf5' : item.payment_status === 'En Proceso' ? '#eff6ff' : '#fffbeb',
