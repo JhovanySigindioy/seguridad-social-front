@@ -18,7 +18,7 @@ const formatDate = (value?: string | null) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return 'Sin registrar';
   return new Intl.DateTimeFormat('es-CO', {
-    day: '2-digit', month: 'short', year: 'numeric',
+    day: '2-digit', month: 'short', year: 'numeric', timeZone: 'America/Bogota',
   }).format(date);
 };
 
@@ -64,7 +64,16 @@ const WhatsAppIcon = ({ size = 16 }: { size?: number }) => (
   <img src="/img/whatsapp.png" alt="" aria-hidden="true" width={size} height={size} className="block object-contain" />
 );
 
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
 
 export const DailyReportPage = () => {
   const { user } = useAuthStore();
@@ -433,7 +442,7 @@ export const DailyReportPage = () => {
                       <td className="px-4 py-3">
                         {(() => {
                           const isInactivo = item.status === 'Inactivo';
-                          const isExpired = item.status === 'Activo' && item.end_date && new Date(item.end_date) < new Date();
+                           const isExpired = item.status === 'Activo' && item.end_date && item.end_date.slice(0, 10) < selectedDate;
                           const cls = isInactivo
                             ? 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
                             : isExpired

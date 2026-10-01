@@ -271,12 +271,12 @@ const AffiliationRow = ({ item, showOffice, clientFallback }: { item: any; showO
 
 // ─── Dashboard Home ───────────────────────────────────────────────────────────
 const DashboardHome = ({ user, activeOfficeId, onOpenPortal }: { user: any; activeOfficeId: number | null; onOpenPortal?: () => void }) => {
-  const { data: affiliations, isLoading } = useAffiliations();
   const { data: clients } = useClients();
   const { offices } = useOffices();
   const [selectedOfficeId, setSelectedOfficeId] = useState<number | 'all'>('all');
   const [targetMonth, setTargetMonth] = useState<number>(new Date().getMonth() + 1);
   const [targetYear, setTargetYear] = useState<number>(new Date().getFullYear());
+  const { data: affiliations, isLoading } = useAffiliations(targetMonth, targetYear);
   const isAdmin = user?.role === 'admin';
   const { data: portalService } = usePortalServiceStatus();
 
@@ -356,6 +356,7 @@ const DashboardHome = ({ user, activeOfficeId, onOpenPortal }: { user: any; acti
     return filteredAffiliations
       .filter((a: any) => {
         if (a.status !== 'Activo') return false;
+        if (!['PRIMERA_AFILIACION', 'REINGRESO'].includes(a.affiliation_origin)) return false;
          const startDate = new Date(a.start_date);
          return (startDate.getMonth() + 1) === targetMonth && startDate.getFullYear() === targetYear;
       })
@@ -427,7 +428,7 @@ const DashboardHome = ({ user, activeOfficeId, onOpenPortal }: { user: any; acti
               Meta del Mes: {targetGoal} Afiliaciones
             </h2>
             <p className="text-sm font-medium text-slate-500 dark:text-zinc-400 mt-1">
-              Se han confirmado <span className="text-blue-600 dark:text-blue-400 font-bold">{stats.completed}</span> pagos
+              Afiliaciones nuevas pagadas: <span className="text-blue-600 dark:text-blue-400 font-bold">{stats.completed}</span>
             </p>
           </div>
         </div>
@@ -472,7 +473,7 @@ const DashboardHome = ({ user, activeOfficeId, onOpenPortal }: { user: any; acti
         <StatCard label="Nuevas Afiliaciones" value={isLoading ? '…' : stats.total}
           icon={TrendingUp} bg="bg-indigo-100 dark:bg-indigo-900/30"
           iconColor="text-indigo-600 dark:text-indigo-400" delay={0.05} />
-        <StatCard label="Pagas (Nuevas)" value={isLoading ? '…' : stats.paid}
+        <StatCard label="Pagadas nuevas" value={isLoading ? '…' : stats.paid}
           icon={CheckCircle2} bg="bg-emerald-100 dark:bg-emerald-900/30"
           iconColor="text-emerald-600 dark:text-emerald-400" delay={0.1} />
         <StatCard label="En Proceso (Nuevas)" value={isLoading ? '…' : stats.inProcess}

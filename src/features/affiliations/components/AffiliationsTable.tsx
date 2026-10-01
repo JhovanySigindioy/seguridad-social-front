@@ -58,19 +58,6 @@ const getAllowedStatuses = (role?: string): PaymentStatus[] => {
   return [];
 };
 
-const formatDate = (value?: string | null) => {
-  if (!value) return 'Sin registrar';
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Sin registrar';
-
-  return new Intl.DateTimeFormat('es-CO', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-};
-
 const formatPhones = (phone1?: string | null, phone2?: string | null) => {
   return [phone1, phone2].filter(Boolean).join(' / ') || 'Sin telefono';
 };
@@ -119,6 +106,20 @@ const getDisplayObservation = (item: AffiliationItem) => {
   }
 
   return item.observation || null;
+};
+
+const formatCalendarDate = (value?: string | null) => {
+  const datePart = value?.slice(0, 10);
+  if (!datePart) return 'Sin registrar';
+
+  const [year, month, day] = datePart.split('-').map(Number);
+  if (!year || !month || !day) return 'Sin registrar';
+
+  return new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, day));
 };
 
 const isPendingDecision = (item: AffiliationItem) =>
@@ -546,8 +547,8 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                     )}
                     <td className="px-4 py-3.5">
                       <div className="text-[11px] leading-tight text-slate-500 dark:text-zinc-400">
-                        <p><span className="font-bold text-slate-600 dark:text-zinc-300">Recibido:</span> {formatDate(item.created_at)}</p>
-                        <p><span className="font-bold text-emerald-600 dark:text-emerald-400">Pagado:</span> {formatDate(item.gov_record_at)}</p>
+                        <p><span className="font-bold text-slate-600 dark:text-zinc-300">Recibido:</span> {formatCalendarDate(item.payment_received_date)}</p>
+                        <p><span className="font-bold text-emerald-600 dark:text-emerald-400">Pagado:</span> {formatCalendarDate(item.gov_record_at)}</p>
                       </div>
                     </td>
                     <td className="px-4 py-3.5">

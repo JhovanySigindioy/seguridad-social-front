@@ -57,8 +57,8 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
         setGovRecordAt('');
       }
 
-      if (affiliation.created_at) {
-        setCreatedAt(affiliation.created_at.split('T')[0]);
+      if (affiliation.payment_received_date || affiliation.created_at) {
+        setCreatedAt((affiliation.payment_received_date || affiliation.created_at).split('T')[0]);
       } else {
         setCreatedAt('');
       }
@@ -116,7 +116,7 @@ export const EditAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =>
         start_date: affiliation?.start_date ? affiliation.start_date.split('T')[0] : null,
         end_date: affiliation?.end_date ? affiliation.end_date.split('T')[0] : null,
         gov_record_at: govRecordAt || null,
-        created_at: createdAt || null,
+         received_date: createdAt || null,
         eps_id: hasEps ? Number(epsId) : null,
         arl_id: hasArl ? Number(arlId) : null,
         ccf_id: hasCcf ? Number(ccfId) : null,

@@ -46,6 +46,7 @@ export interface AffiliationItem {
   withdrawal_reason: WithdrawalReason | null;
   withdrawal_observations: string | null;
   office_name: string;
+  payment_received_date: string | null;
 }
 
 export interface AffiliationListResponse {

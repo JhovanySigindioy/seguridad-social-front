@@ -23,6 +23,17 @@ const formatDate = (value?: string | null) => {
   return `${year}/${month}/${day} ${hours}:${minutes}`;
 };
 
+const formatCalendarDate = (value?: string | null) => {
+  const datePart = value?.slice(0, 10);
+  if (!datePart) return 'Sin registrar';
+
+  const [year, month, day] = datePart.split('-').map(Number);
+  if (!year || !month || !day) return 'Sin registrar';
+
+  const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+  return `${String(day).padStart(2, '0')}/${months[month - 1]}/${year}`;
+};
+
 const formatPhones = (phone1?: string | null, phone2?: string | null) => {
   return [phone1, phone2].filter(Boolean).join(' / ') || 'Sin telefono';
 };
@@ -203,11 +214,11 @@ export const AffiliationDetailsModal = ({ isOpen, onClose, data, initialTab = 'd
                     
 <div className="flex justify-between items-center gap-4">
                       <span className="text-sm font-medium text-slate-500 dark:text-zinc-400">Pago ante gobierno</span>
-                      <span className="text-right text-sm font-bold text-emerald-700 dark:text-emerald-300">{formatDate(data.gov_record_at)}</span>
+                       <span className="text-right text-sm font-bold text-emerald-700 dark:text-emerald-300">{formatCalendarDate(data.gov_record_at)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-slate-500 dark:text-zinc-400">Recibido en plataforma</span>
-                      <span className="text-right text-sm font-bold text-slate-700 dark:text-zinc-200">{formatDate(data.created_at)}</span>
+                       <span className="text-right text-sm font-bold text-slate-700 dark:text-zinc-200">{formatCalendarDate(data.payment_received_date)}</span>
                     </div>
                   </div>
                 </div>
