@@ -443,7 +443,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
             <tr className="border-b border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-800/50">
               {[
                 { label: '#', field: '' },
-                { label: 'Documentos', field: '' },
+                 { label: 'Docs', field: '' },
                 { label: 'Cliente', field: 'client_name' },
                 { label: 'Empresa', field: 'company_name' },
                 { label: 'Oficina', field: 'office_name', hideForManager: true },
@@ -461,7 +461,10 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                   onClick={() => col.field && handleSort(col.field)}
                   className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400 cursor-pointer hover:text-indigo-600 select-none whitespace-nowrap"
                 >
-                  <span className="flex items-center">{col.label}{col.field && <SortIcon field={col.field} />}</span>
+                   <span className="flex items-center gap-1.5">
+                     {col.label === 'Docs' && <UploadCloud size={14} />}
+                     {col.label}{col.field && <SortIcon field={col.field} />}
+                   </span>
                 </th>
               ))}
             </tr>
@@ -504,11 +507,12 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
                     <td className="px-4 py-3.5 text-center" onClick={event => event.stopPropagation()}>
                       <button
                         onClick={() => { setSelectedTab('documents'); setSelectedItem(item); }}
-                        className="inline-flex rounded-lg p-2 text-slate-400 transition-colors hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-900/30"
+                         className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-slate-400 transition-colors hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-900/30"
                         title="Ver y subir documentos"
                         aria-label={`Ver y subir documentos de ${item.client_name}`}
                       >
-                        <UploadCloud size={21} />
+                         <UploadCloud size={18} />
+                         <span className="text-xs font-semibold">Docs</span>
                       </button>
                     </td>
                     <td className="px-4 py-3.5">
