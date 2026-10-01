@@ -175,7 +175,7 @@ export const AffiliationsTable = ({ onNewAffiliation, defaultTab = 'activas' }: 
     if (!affiliations) return [];
     return affiliations
       .filter(a => {
-        const isInactive = a.status !== 'Activo';
+        const isInactive = a.status === 'Inactivo';
         if (defaultTab === 'activas' && isInactive) return false;
         if (defaultTab === 'inactivas' && !isInactive) return false;
 
