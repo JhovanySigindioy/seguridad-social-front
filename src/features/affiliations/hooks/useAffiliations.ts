@@ -138,12 +138,39 @@ export const useCloseAffiliation = () => {
       withdrawal_reason: 'Voluntario' | 'FinContrato' | 'Licencia' | 'Otro';
       withdrawal_observations?: string;
     }) => {
-      const { data } = await api.patch(`/affiliations/${id}/close`, {
+      const payload = {
         end_date,
         withdrawal_reason,
         withdrawal_observations,
+      };
+      const url = `/affiliations/${id}/close`;
+
+      console.info('[Affiliations][close] Enviando solicitud', {
+        url,
+        affiliationId: id,
+        payload: {
+          ...payload,
+          withdrawal_observations: payload.withdrawal_observations ? '[provided]' : undefined,
+        },
       });
-      return data.data;
+
+      try {
+        const { data } = await api.patch(url, payload);
+        console.info('[Affiliations][close] Respuesta recibida', {
+          affiliationId: id,
+          status: data?.success,
+          result: data?.data,
+        });
+        return data.data;
+      } catch (error: any) {
+        console.error('[Affiliations][close] Error en la solicitud', {
+          affiliationId: id,
+          httpStatus: error.response?.status,
+          response: error.response?.data,
+          message: error.message,
+        });
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['affiliations'] });

@@ -38,6 +38,15 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
   const handleSubmit = async () => {
     if (!affiliation) return;
     if (!endDate) return showToast('Selecciona la fecha de finalización');
+
+    console.info('[Affiliations][close] Confirmando retiro desde modal', {
+      affiliationId: affiliation.id,
+      affiliationStatus: affiliation.status,
+      affiliationStartDate: affiliation.start_date,
+      endDate,
+      withdrawalReason: reason,
+      hasWithdrawalObservations: Boolean(observations.trim()),
+    });
     
     try {
       await closeAffiliation({
@@ -49,6 +58,11 @@ export const CloseAffiliationModal = ({ isOpen, onClose, affiliation }: Props) =
       showToast('Afiliación retirada correctamente', 'success');
       onClose();
     } catch (err: any) {
+      console.error('[Affiliations][close] Modal recibió error', {
+        affiliationId: affiliation.id,
+        httpStatus: err.response?.status,
+        serverError: err.response?.data?.error,
+      });
       showToast(err.response?.data?.error || 'Error al retirar la afiliación');
     }
   };
