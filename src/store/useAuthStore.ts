@@ -1,14 +1,15 @@
 import { create } from 'zustand';
 import type { AuthUser } from '../types/auth.types';
+import { getSessionTabId } from '../services/auth/session-tab';
 
 interface AuthState {
   token: string | null;
   user: AuthUser | null;
   offices: number[]; // IDs de oficinas permitidas
   activeOfficeId: number | null; // ID de la oficina seleccionada
-  setAuth: (token: string, user: AuthUser, offices: number[]) => void;
+  setAuth: (user: AuthUser, offices: number[]) => void;
   setActiveOffice: (officeId: number) => void;
-  logout: () => void;
+  logout: (notifyServer?: boolean) => Promise<void>;
 }
 
 const safeParse = <T>(key: string, fallback: T): T => {
@@ -41,13 +42,12 @@ if (!initialUser) {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  token: initialUser ? localStorage.getItem('token') : null,
+  token: null,
   user: initialUser,
   offices: initialOffices,
   activeOfficeId: initialUser?.role === 'admin' ? null : initialActiveOfficeId,
   
-  setAuth: (token, user, offices) => {
-    localStorage.setItem('token', token);
+  setAuth: (user, offices) => {
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('offices', JSON.stringify(offices));
     
@@ -61,7 +61,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.removeItem('activeOfficeId');
     }
 
-    set({ token, user, offices, activeOfficeId: autoOffice });
+    set({ token: 'session', user, offices, activeOfficeId: autoOffice });
   },
 
   setActiveOffice: (officeId) => {
@@ -69,7 +69,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ activeOfficeId: officeId });
   },
   
-  logout: () => {
+  logout: async (notifyServer = true) => {
+    if (notifyServer) {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://seguridad-social-api.impulsaepos.com/api';
+      await fetch(`${apiUrl}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-Session-Tab-Id': getSessionTabId() },
+      }).catch(() => undefined);
+    }
+
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('offices');

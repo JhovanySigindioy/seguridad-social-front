@@ -28,9 +28,9 @@ export const LoginPage = () => {
 
   const { mutate: login, isPending } = useMutation({
     mutationFn: loginRequest,
-    onSuccess: ({ token, user, offices }) => {
+    onSuccess: ({ user, offices }) => {
       setBlockedMessage(null);
-      setAuth(token, user, offices);
+      setAuth(user, offices);
     },
     onError: (error: any) => {
       const status = error?.response?.status;
@@ -38,6 +38,11 @@ export const LoginPage = () => {
 
       if (status === 403) {
         setBlockedMessage(message || 'Su acceso a la plataforma se encuentra temporalmente restringido por una novedad administrativa relacionada con el estado de pago.');
+        return;
+      }
+
+      if (status === 409) {
+        setFormError(message || 'Este usuario ya tiene una sesión activa en otro equipo o pestaña.');
         return;
       }
 

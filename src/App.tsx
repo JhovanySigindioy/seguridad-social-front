@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -10,6 +10,7 @@ import { useAuthStore } from './store/useAuthStore';
 import { useAffiliateAuthStore } from './store/useAffiliateAuthStore';
 import { ToastProvider, useToast } from './components/Toast';
 import { registerToastBridge } from './services/api/axios-instance';
+import api from './services/api/axios-instance';
 
 /**
  * AppBridge: componente interno que tiene acceso al contexto de Toast
@@ -55,6 +56,17 @@ function App() {
   const user = useAuthStore(state => state.user);
   const affiliateToken = useAffiliateAuthStore(state => state.token);
   const isAdmin = user?.role === 'admin';
+  const setAuth = useAuthStore(state => state.setAuth);
+  const bootstrapAttempted = useRef(false);
+
+  useEffect(() => {
+    if (bootstrapAttempted.current) return;
+    bootstrapAttempted.current = true;
+
+    void api.get<{ success: boolean; data: { user: NonNullable<typeof user>; offices: number[] } }>('/auth/session')
+      .then(({ data }) => setAuth(data.data.user, data.data.offices))
+      .catch(() => undefined);
+  }, [setAuth]);
 
   return (
     <ToastProvider>

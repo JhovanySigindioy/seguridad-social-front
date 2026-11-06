@@ -737,7 +737,7 @@ const Sidebar = ({
             <p className="text-xs text-slate-400 dark:text-zinc-500 capitalize">{user?.role?.replace('_', ' ')}</p>
           </div>
           <button
-            onClick={logout}
+            onClick={() => void logout()}
             title="Cerrar sesión"
             className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
           >

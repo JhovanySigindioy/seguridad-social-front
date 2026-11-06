@@ -20,7 +20,6 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private clearSession = () => {
-    localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('offices');
     localStorage.removeItem('activeOfficeId');
